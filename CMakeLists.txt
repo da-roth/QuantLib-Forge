@@ -74,6 +74,13 @@ else()
     message(WARNING "QuantLib-Forge: forge target not found!")
 endif()
 
+# Find and link OpenMP (QuantLib uses OpenMP in some components)
+find_package(OpenMP)
+if(OpenMP_CXX_FOUND)
+    message(STATUS "QuantLib-Forge: Linking OpenMP")
+    target_link_libraries(QuantLibForge INTERFACE OpenMP::OpenMP_CXX)
+endif()
+
 # Compile definitions
 target_compile_definitions(QuantLibForge INTERFACE
     QL_NULL_AS_FUNCTIONS=1  # QuantLib compatibility for overloaded types
