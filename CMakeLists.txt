@@ -92,10 +92,10 @@ if(QLFORGE_DISABLE_AAD)
 endif()
 
 # ============================================================================
-# Examples (only when configured standalone)
+# Examples
 # ============================================================================
 
-if(QLFORGE_BUILD_EXAMPLES AND PROJECT_IS_TOP_LEVEL)
+if(QLFORGE_BUILD_EXAMPLES)
     message(STATUS "QuantLib-Forge: Building examples")
     add_subdirectory(examples)
 endif()

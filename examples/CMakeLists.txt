@@ -1,15 +1,21 @@
 # QuantLib-Forge Examples
 
-# Find QuantLib (only if not already available as a target)
-if(NOT TARGET QuantLib)
-    find_package(QuantLib REQUIRED)
-endif()
-
 # Determine the correct QuantLib target name
-if(TARGET QuantLib)
+# When building as part of QuantLib (via QL_EXTERNAL_SUBDIRECTORIES),
+# the target is ql_library. When building standalone, we need to find QuantLib.
+if(TARGET ql_library)
+    # Building as part of QuantLib
+    set(QL_TARGET ql_library)
+    message(STATUS "Using QuantLib target: ql_library (integrated build)")
+elseif(TARGET QuantLib)
+    # QuantLib already found
     set(QL_TARGET QuantLib)
+    message(STATUS "Using QuantLib target: QuantLib")
 else()
+    # Standalone build - need to find QuantLib
+    find_package(QuantLib REQUIRED)
     set(QL_TARGET QuantLib::QuantLib)
+    message(STATUS "Using QuantLib target: QuantLib::QuantLib (found package)")
 endif()
 
 # European Option example
