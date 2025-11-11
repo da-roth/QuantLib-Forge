@@ -1,0 +1,11 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# Find Forge dependency
+find_dependency(Forge)
+
+# Include the targets file
+include("${CMAKE_CURRENT_LIST_DIR}/QuantLibForgeTargets.cmake")
+
+check_required_components(QuantLibForge)

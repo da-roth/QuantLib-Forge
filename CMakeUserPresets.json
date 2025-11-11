@@ -1,0 +1,153 @@
+{
+  "version": 5,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 22,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "linux-forge-gcc-debug",
+      "displayName": "Linux GCC Debug with Forge",
+      "description": "Build QuantLib with Forge AAD (GCC, Debug)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-forge-gcc-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "QL_EXTERNAL_SUBDIRECTORIES": "${sourceDir}/../forge;${sourceDir}/../QuantLib-Forge",
+        "QL_EXTRA_LINK_LIBRARIES": "QuantLibForge",
+        "QL_NULL_AS_FUNCTIONS": "ON",
+        "FORGE_ROOT": "${sourceDir}/../forge",
+        "QLFORGE_BUILD_EXAMPLES": "ON",
+        "QLFORGE_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "linux-forge-gcc-release",
+      "displayName": "Linux GCC Release with Forge",
+      "description": "Build QuantLib with Forge AAD (GCC, Release)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-forge-gcc-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "QL_EXTERNAL_SUBDIRECTORIES": "${sourceDir}/../forge;${sourceDir}/../QuantLib-Forge",
+        "QL_EXTRA_LINK_LIBRARIES": "QuantLibForge",
+        "QL_NULL_AS_FUNCTIONS": "ON",
+        "FORGE_ROOT": "${sourceDir}/../forge",
+        "QLFORGE_BUILD_EXAMPLES": "ON",
+        "QLFORGE_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "linux-forge-clang-debug",
+      "displayName": "Linux Clang Debug with Forge",
+      "description": "Build QuantLib with Forge AAD (Clang, Debug)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-forge-clang-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "QL_EXTERNAL_SUBDIRECTORIES": "${sourceDir}/../forge;${sourceDir}/../QuantLib-Forge",
+        "QL_EXTRA_LINK_LIBRARIES": "QuantLibForge",
+        "QL_NULL_AS_FUNCTIONS": "ON",
+        "FORGE_ROOT": "${sourceDir}/../forge",
+        "QLFORGE_BUILD_EXAMPLES": "ON",
+        "QLFORGE_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "linux-forge-clang-release",
+      "displayName": "Linux Clang Release with Forge",
+      "description": "Build QuantLib with Forge AAD (Clang, Release)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-forge-clang-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "QL_EXTERNAL_SUBDIRECTORIES": "${sourceDir}/../forge;${sourceDir}/../QuantLib-Forge",
+        "QL_EXTRA_LINK_LIBRARIES": "QuantLibForge",
+        "QL_NULL_AS_FUNCTIONS": "ON",
+        "FORGE_ROOT": "${sourceDir}/../forge",
+        "QLFORGE_BUILD_EXAMPLES": "ON",
+        "QLFORGE_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "linux-noforge-gcc-release",
+      "displayName": "Linux GCC Release WITHOUT Forge (baseline)",
+      "description": "Build QuantLib with standard double (for benchmarking)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-noforge-gcc-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "QL_EXTERNAL_SUBDIRECTORIES": "${sourceDir}/../forge;${sourceDir}/../QuantLib-Forge",
+        "QL_EXTRA_LINK_LIBRARIES": "QuantLibForge",
+        "QL_NULL_AS_FUNCTIONS": "ON",
+        "FORGE_ROOT": "${sourceDir}/../forge",
+        "QLFORGE_DISABLE_AAD": "ON",
+        "QLFORGE_BUILD_EXAMPLES": "ON",
+        "QLFORGE_BUILD_TESTS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "linux-forge-gcc-debug",
+      "configurePreset": "linux-forge-gcc-debug"
+    },
+    {
+      "name": "linux-forge-gcc-release",
+      "configurePreset": "linux-forge-gcc-release"
+    },
+    {
+      "name": "linux-forge-clang-debug",
+      "configurePreset": "linux-forge-clang-debug"
+    },
+    {
+      "name": "linux-forge-clang-release",
+      "configurePreset": "linux-forge-clang-release"
+    },
+    {
+      "name": "linux-noforge-gcc-release",
+      "configurePreset": "linux-noforge-gcc-release"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "linux-forge-gcc-debug",
+      "configurePreset": "linux-forge-gcc-debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux-forge-gcc-release",
+      "configurePreset": "linux-forge-gcc-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux-forge-clang-debug",
+      "configurePreset": "linux-forge-clang-debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux-forge-clang-release",
+      "configurePreset": "linux-forge-clang-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}
