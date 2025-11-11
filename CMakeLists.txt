@@ -66,10 +66,11 @@ target_include_directories(QuantLibForge INTERFACE
     $<INSTALL_INTERFACE:include>
 )
 
-# Link to Forge target during build only (not exported)
+# QuantLibForge is header-only - NO link dependencies
+# The forge library is linked directly to QuantLib via QL_EXTRA_LINK_LIBRARIES
+# This avoids export dependency issues
 if(TARGET forge)
-    message(STATUS "QuantLib-Forge: Linking to forge target (build-time only)")
-    target_link_libraries(QuantLibForge INTERFACE forge)
+    message(STATUS "QuantLib-Forge: Header-only adapter (forge linked via QuantLib)")
 else()
     message(WARNING "QuantLib-Forge: forge target not found!")
 endif()
@@ -107,9 +108,12 @@ endif()
 # Installation
 # ============================================================================
 
-# Install headers only (not the target itself)
-# The QuantLibForge target is only used during build with QuantLib
-# Downstream consumers get the forge integration via QuantLib's includes
+# Install QuantLibForge target and headers
+# forge dependency uses BUILD_INTERFACE so it's not required in export
+install(TARGETS QuantLibForge EXPORT QuantLibTargets
+    INCLUDES DESTINATION include
+)
+
 install(DIRECTORY ql/
     DESTINATION include/ql
     FILES_MATCHING PATTERN "*.hpp"
