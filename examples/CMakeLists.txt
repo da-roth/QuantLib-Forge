@@ -3,19 +3,21 @@
 # Determine the correct QuantLib target name
 # When building as part of QuantLib (via QL_EXTERNAL_SUBDIRECTORIES),
 # the target is ql_library. When building standalone, we need to find QuantLib.
-if(TARGET ql_library)
-    # Building as part of QuantLib
+# Check if we're being built as part of QuantLib by looking for QL_EXTERNAL_SUBDIRECTORIES
+if(DEFINED QL_EXTERNAL_SUBDIRECTORIES)
+    # Building as part of QuantLib - use ql_library target
+    # Note: ql_library will be defined later in the CMake run
     set(QL_TARGET ql_library)
-    message(STATUS "Using QuantLib target: ql_library (integrated build)")
+    message(STATUS "QuantLib-Forge Examples: Using ql_library (integrated build)")
 elseif(TARGET QuantLib)
     # QuantLib already found
     set(QL_TARGET QuantLib)
-    message(STATUS "Using QuantLib target: QuantLib")
+    message(STATUS "QuantLib-Forge Examples: Using QuantLib target")
 else()
     # Standalone build - need to find QuantLib
     find_package(QuantLib REQUIRED)
     set(QL_TARGET QuantLib::QuantLib)
-    message(STATUS "Using QuantLib target: QuantLib::QuantLib (found package)")
+    message(STATUS "QuantLib-Forge Examples: Found QuantLib package")
 endif()
 
 # European Option example
