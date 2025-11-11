@@ -120,13 +120,20 @@ cmake --build build/forge -j
 
 ### Running Examples
 
-After building, run the European option example:
+After building, run the examples:
 
 ```bash
+# European option - vanilla option pricing and Greeks
 ./build/forge/QuantLib-Forge/examples/european_option
+
+# Barrier option - demonstrates handling of discontinuities
+./build/forge/QuantLib-Forge/examples/barrier_option
+
+# Curve bootstrapping - sensitivity to yield curve pillars
+./build/forge/QuantLib-Forge/examples/curve_bootstrap
 ```
 
-Expected output:
+Expected output (European option):
 ```
 ==============================================
 European Option Pricing with Forge AAD
@@ -231,6 +238,8 @@ QuantLib-Forge/
 │   └── session.hpp         # RAII session wrapper
 ├── examples/
 │   ├── european_option.cpp # Basic option pricing + Greeks
+│   ├── barrier_option.cpp  # Barrier option with discontinuities
+│   ├── curve_bootstrap.cpp # Yield curve sensitivity analysis
 │   └── CMakeLists.txt
 ├── tests/
 │   ├── test_vanilla_greeks.cpp  # Validation tests
