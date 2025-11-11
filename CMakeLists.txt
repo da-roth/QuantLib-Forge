@@ -66,11 +66,10 @@ target_include_directories(QuantLibForge INTERFACE
     $<INSTALL_INTERFACE:include>
 )
 
-# QuantLibForge is header-only - NO link dependencies
-# The forge library is linked directly to QuantLib via QL_EXTRA_LINK_LIBRARIES
-# This avoids export dependency issues
+# Link to forge using the alias (which is exportable)
 if(TARGET forge)
-    message(STATUS "QuantLib-Forge: Header-only adapter (forge linked via QuantLib)")
+    message(STATUS "QuantLib-Forge: Linking to forge::forge")
+    target_link_libraries(QuantLibForge INTERFACE forge::forge)
 else()
     message(WARNING "QuantLib-Forge: forge target not found!")
 endif()
