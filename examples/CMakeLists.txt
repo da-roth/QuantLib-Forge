@@ -36,11 +36,20 @@ target_link_libraries(curve_bootstrap
         QuantLibForge
 )
 
+# Adjoint European Equity Option example (matches XAD portfolio example)
+add_executable(adjoint_european_equity_option adjoint_european_equity_option.cpp)
+target_link_libraries(adjoint_european_equity_option
+    PRIVATE
+        ${QL_TARGET}
+        QuantLibForge
+)
+
 # Set C++ standard for all examples
 set_target_properties(
     european_option
     barrier_option
     curve_bootstrap
+    adjoint_european_equity_option
     PROPERTIES
         CXX_STANDARD 17
         CXX_STANDARD_REQUIRED ON
@@ -50,3 +59,4 @@ set_target_properties(
 add_test(NAME european_option_test COMMAND european_option)
 add_test(NAME barrier_option_test COMMAND barrier_option)
 add_test(NAME curve_bootstrap_test COMMAND curve_bootstrap)
+add_test(NAME adjoint_european_equity_option_test COMMAND adjoint_european_equity_option)
