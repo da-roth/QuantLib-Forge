@@ -1,13 +1,22 @@
 # QuantLib-Forge Examples
 
-# Find QuantLib
-find_package(QuantLib REQUIRED)
+# Find QuantLib (only if not already available as a target)
+if(NOT TARGET QuantLib)
+    find_package(QuantLib REQUIRED)
+endif()
+
+# Determine the correct QuantLib target name
+if(TARGET QuantLib)
+    set(QL_TARGET QuantLib)
+else()
+    set(QL_TARGET QuantLib::QuantLib)
+endif()
 
 # European Option example
 add_executable(european_option european_option.cpp)
 target_link_libraries(european_option
     PRIVATE
-        QuantLib::QuantLib
+        ${QL_TARGET}
         QuantLibForge
 )
 
@@ -15,7 +24,7 @@ target_link_libraries(european_option
 add_executable(barrier_option barrier_option.cpp)
 target_link_libraries(barrier_option
     PRIVATE
-        QuantLib::QuantLib
+        ${QL_TARGET}
         QuantLibForge
 )
 
@@ -23,7 +32,7 @@ target_link_libraries(barrier_option
 add_executable(curve_bootstrap curve_bootstrap.cpp)
 target_link_libraries(curve_bootstrap
     PRIVATE
-        QuantLib::QuantLib
+        ${QL_TARGET}
         QuantLibForge
 )
 

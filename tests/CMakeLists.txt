@@ -1,13 +1,22 @@
 # QuantLib-Forge Tests
 
-# Find QuantLib
-find_package(QuantLib REQUIRED)
+# Find QuantLib (only if not already available as a target)
+if(NOT TARGET QuantLib)
+    find_package(QuantLib REQUIRED)
+endif()
+
+# Determine the correct QuantLib target name
+if(TARGET QuantLib)
+    set(QL_TARGET QuantLib)
+else()
+    set(QL_TARGET QuantLib::QuantLib)
+endif()
 
 # Test: Vanilla Greeks
 add_executable(test_vanilla_greeks test_vanilla_greeks.cpp)
 target_link_libraries(test_vanilla_greeks
     PRIVATE
-        QuantLib::QuantLib
+        ${QL_TARGET}
         QuantLibForge
 )
 

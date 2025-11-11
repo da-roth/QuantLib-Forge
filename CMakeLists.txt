@@ -13,8 +13,15 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Build Options
 # ============================================================================
 
-option(QLFORGE_BUILD_EXAMPLES "Build QuantLib-Forge examples" ON)
-option(QLFORGE_BUILD_TESTS "Build QuantLib-Forge tests" ON)
+# When building as part of QuantLib via QL_EXTERNAL_SUBDIRECTORIES, PROJECT_IS_TOP_LEVEL won't be set
+# In that case, we don't have QuantLib as a findable package yet, so we skip examples/tests initially
+if(DEFINED QL_EXTERNAL_SUBDIRECTORIES)
+    option(QLFORGE_BUILD_EXAMPLES "Build QuantLib-Forge examples" OFF)
+    option(QLFORGE_BUILD_TESTS "Build QuantLib-Forge tests" OFF)
+else()
+    option(QLFORGE_BUILD_EXAMPLES "Build QuantLib-Forge examples" ON)
+    option(QLFORGE_BUILD_TESTS "Build QuantLib-Forge tests" ON)
+endif()
 option(QLFORGE_DISABLE_AAD "Disable AAD (use regular double, for benchmarking)" OFF)
 
 # ============================================================================
@@ -105,8 +112,8 @@ endif()
 # Installation
 # ============================================================================
 
-install(TARGETS QuantLibForge
-    EXPORT QuantLibForgeTargets
+# Install QuantLibForge target - export to QuantLibTargets when built with QuantLib
+install(TARGETS QuantLibForge EXPORT QuantLibTargets
     INCLUDES DESTINATION include
 )
 
@@ -115,32 +122,29 @@ install(DIRECTORY ql/
     FILES_MATCHING PATTERN "*.hpp"
 )
 
-install(EXPORT QuantLibForgeTargets
-    FILE QuantLibForgeTargets.cmake
-    NAMESPACE QuantLibForge::
-    DESTINATION lib/cmake/QuantLibForge
-)
+# Only create standalone package config when built standalone
+if(PROJECT_IS_TOP_LEVEL OR CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    # Generate and install package config files
+    include(CMakePackageConfigHelpers)
 
-# Generate and install package config files
-include(CMakePackageConfigHelpers)
+    configure_package_config_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/QuantLibForgeConfig.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/QuantLibForgeConfig.cmake"
+        INSTALL_DESTINATION lib/cmake/QuantLibForge
+    )
 
-configure_package_config_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/QuantLibForgeConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/QuantLibForgeConfig.cmake"
-    INSTALL_DESTINATION lib/cmake/QuantLibForge
-)
+    write_basic_package_version_file(
+        "${CMAKE_CURRENT_BINARY_DIR}/QuantLibForgeConfigVersion.cmake"
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY SameMajorVersion
+    )
 
-write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/QuantLibForgeConfigVersion.cmake"
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY SameMajorVersion
-)
-
-install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/QuantLibForgeConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/QuantLibForgeConfigVersion.cmake"
-    DESTINATION lib/cmake/QuantLibForge
-)
+    install(FILES
+        "${CMAKE_CURRENT_BINARY_DIR}/QuantLibForgeConfig.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/QuantLibForgeConfigVersion.cmake"
+        DESTINATION lib/cmake/QuantLibForge
+    )
+endif()
 
 # ============================================================================
 # Print Configuration Summary
@@ -152,5 +156,9 @@ message(STATUS "  Version: ${PROJECT_VERSION}")
 message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "  Build Examples: ${QLFORGE_BUILD_EXAMPLES}")
 message(STATUS "  Build Tests: ${QLFORGE_BUILD_TESTS}")
-message(STATUS "  AAD Enabled: ${NOT QLFORGE_DISABLE_AAD}")
+if(QLFORGE_DISABLE_AAD)
+    message(STATUS "  AAD Enabled: OFF")
+else()
+    message(STATUS "  AAD Enabled: ON")
+endif()
 message(STATUS "")
