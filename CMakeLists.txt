@@ -66,17 +66,17 @@ target_include_directories(QuantLibForge INTERFACE
     $<INSTALL_INTERFACE:include>
 )
 
-# Link to Forge if available as a target
+# Link to Forge using the namespaced target (now exportable)
 if(TARGET forge)
-    message(STATUS "QuantLib-Forge: Linking to forge target")
-    target_link_libraries(QuantLibForge INTERFACE forge)
+    message(STATUS "QuantLib-Forge: Linking to forge::forge target")
+    target_link_libraries(QuantLibForge INTERFACE forge::forge)
 elseif(Forge_FOUND)
     message(STATUS "QuantLib-Forge: Linking to Forge package")
-    target_link_libraries(QuantLibForge INTERFACE Forge::forge)
+    target_link_libraries(QuantLibForge INTERFACE forge::forge)
 else()
     # Fallback: assume forge library is available
     message(STATUS "QuantLib-Forge: Using forge library (fallback)")
-    target_link_libraries(QuantLibForge INTERFACE forge)
+    target_link_libraries(QuantLibForge INTERFACE forge::forge)
 endif()
 
 # Compile definitions
@@ -113,6 +113,7 @@ endif()
 # ============================================================================
 
 # Install QuantLibForge target - export to QuantLibTargets when built with QuantLib
+# Now that forge is exportable, we can safely export QuantLibForge
 install(TARGETS QuantLibForge EXPORT QuantLibTargets
     INCLUDES DESTINATION include
 )
