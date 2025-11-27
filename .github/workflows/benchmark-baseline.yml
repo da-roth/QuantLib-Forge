@@ -69,7 +69,7 @@ jobs:
           cmake_minimum_required(VERSION 3.15)
           project(SwapXvaBaseline LANGUAGES CXX)
           find_package(QuantLib REQUIRED)
-          add_executable(swap_xva_baseline ../quantlib-forge/benchmarks/swap_xva_baseline.cpp)
+          add_executable(swap_xva_baseline $ENV{GITHUB_WORKSPACE}/quantlib-forge/benchmarks/swap_xva_baseline.cpp)
           target_link_libraries(swap_xva_baseline PRIVATE QuantLib::QuantLib)
           target_compile_features(swap_xva_baseline PUBLIC cxx_std_17)
           EOF
