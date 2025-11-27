@@ -12,7 +12,29 @@ This project provides:
 
 ## Performance
 
-XVA benchmark: Vanilla swap pricing with 100 risk factors (sensitivities w.r.t. all inputs).
+XVA benchmark: Vanilla swap pricing with 100 risk factors, 3 time steps. The tradeoff — Forge has a one-time kernel creation cost, but faster evaluation:
+
+```
+XAD vs Forge-AAD
+═══════════════════════════════════════════════════════════════════════════════
+  Scenarios       XAD             Forge-AAD
+               (0.06 ms/eval)     (22 ms kernel + 0.001 ms/eval)
+───────────────────────────────────────────────────────────────────────────────
+          1        1.0 ms           22.6 ms
+         10       10.3 ms           23.3 ms
+        100       93.4 ms           25.4 ms
+      1,000        859 ms           42.5 ms
+═══════════════════════════════════════════════════════════════════════════════
+```
+
+**Notes:**
+- Bump-reval could be faster — currently using the same kernel that computes AAD
+- AVX vectorization not yet enabled
+
+<details>
+<summary>Full benchmark results</summary>
+
+Raw output: [baseline](docs/benchmarkResults/benchmark-baseline.txt) | [forge](docs/benchmarkResults/benchmark-forge.txt) | [xad](docs/benchmarkResults/benchmark-xad.txt)
 
 ```
 Total Execution Time
@@ -52,6 +74,8 @@ Per-Scenario Timing Breakdown
   3 (100 RF, 3 steps)    1,000      2.88 ms           4.6 ms      0.09 ms  (90×)          0.001 ms       0.05 ms
 ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
 ```
+
+</details>
 
 ## Dependencies
 
