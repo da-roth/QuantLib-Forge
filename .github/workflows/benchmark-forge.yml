@@ -1,0 +1,116 @@
+##############################################################################
+#
+#  QuantLib-Forge Benchmark Workflow - Forge
+#
+#  Builds QuantLib with Forge and runs the XVA benchmark.
+#  This measures JIT + AAD performance for comparison with baseline and XAD.
+#
+#  This file is part of QuantLib-Forge, a Forge integration layer for QuantLib.
+#
+#  Copyright (C) 2025 The QuantLib-Forge Authors
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+#
+##############################################################################
+
+name: Benchmark Forge
+
+on:
+  workflow_dispatch:  # Manual trigger only
+
+jobs:
+  benchmark-forge:
+    runs-on: ubuntu-latest
+    container: ghcr.io/lballabio/quantlib-devenv:rolling
+
+    steps:
+      - name: Checkout quantlib-forge
+        uses: actions/checkout@v4
+        with:
+          path: quantlib-forge
+
+      - name: Checkout Forge
+        uses: actions/checkout@v4
+        with:
+          repository: da-roth/forge
+          path: forge
+
+      - name: Checkout QuantLib
+        uses: actions/checkout@v4
+        with:
+          repository: lballabio/QuantLib
+          path: QuantLib
+
+      - name: Setup
+        run: |
+          apt-get update && apt-get install -y ninja-build
+
+      - name: Build Forge
+        run: |
+          cd forge
+          cmake -B build -S tools/packaging \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install
+          cmake --build build --config Release
+          cmake --install build --config Release
+
+      - name: Apply QuantLib ABool patch
+        run: |
+          cd QuantLib
+          git apply ../quantlib-forge/patches/quantlib-abool.patch
+
+      - name: Configure QuantLib with QuantLib-Forge
+        run: |
+          cd QuantLib
+          mkdir build
+          cd build
+          cmake -G Ninja -DBOOST_ROOT=/usr \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH=${{ github.workspace }}/install \
+            -DQL_BUILD_TEST_SUITE=OFF \
+            -DQL_BUILD_EXAMPLES=OFF \
+            -DQL_BUILD_BENCHMARK=OFF \
+            -DQL_ENABLE_SESSIONS=ON \
+            -DQL_NULL_AS_FUNCTIONS=ON \
+            -DQLFORGE_DISABLE_AAD=OFF \
+            -DQL_EXTERNAL_SUBDIRECTORIES="../quantlib-forge" \
+            -DQL_EXTRA_LINK_LIBRARIES="QuantLib-Forge" \
+            ..
+
+      - name: Compile QuantLib
+        run: |
+          cd QuantLib/build
+          cmake --build .
+
+      - name: Install QuantLib
+        run: |
+          cd QuantLib/build
+          cmake --install . --prefix ${{ github.workspace }}/install
+
+      - name: Build Forge Benchmark
+        run: |
+          mkdir benchmark-build
+          cd benchmark-build
+          cat > CMakeLists.txt << 'EOF'
+          cmake_minimum_required(VERSION 3.15)
+          project(SwapXvaForge LANGUAGES CXX)
+          find_package(QuantLib REQUIRED)
+          find_package(Forge CONFIG REQUIRED)
+          add_executable(swap_xva_forge $ENV{GITHUB_WORKSPACE}/quantlib-forge/benchmarks/swap_xva_forge.cpp)
+          target_link_libraries(swap_xva_forge PRIVATE QuantLib::QuantLib Forge::forge)
+          target_compile_features(swap_xva_forge PUBLIC cxx_std_17)
+          EOF
+          cmake -G Ninja -DBOOST_ROOT=/usr \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH=${{ github.workspace }}/install \
+            .
+          cmake --build .
+
+      - name: Run Forge Benchmark
+        run: |
+          cd benchmark-build
+          echo "============================================================="
+          echo "  Forge Benchmark - QuantLib with Forge (JIT + AAD)"
+          echo "============================================================="
+          ./swap_xva_forge
