@@ -110,37 +110,16 @@ jobs:
           cmake --build build --config Release
         shell: pwsh
 
-      - name: Build Forge Benchmark
+      - name: Run QuantLib-Forge Tests
         run: |
-          mkdir benchmark-build
-          cd benchmark-build
-          @"
-          cmake_minimum_required(VERSION 3.15)
-          project(SwapXvaForge LANGUAGES CXX)
-          find_package(QuantLib REQUIRED)
-          find_package(Forge CONFIG REQUIRED)
-          add_executable(swap_xva_forge `$ENV{GITHUB_WORKSPACE}/quantlib-forge/benchmarks/swap_xva_forge.cpp)
-          target_link_libraries(swap_xva_forge PRIVATE QuantLib::QuantLib Forge::forge)
-          target_compile_features(swap_xva_forge PUBLIC cxx_std_17)
-          "@ | Out-File -FilePath CMakeLists.txt -Encoding utf8
-          cmake -B build -S . `
-            -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_PREFIX_PATH="${{ github.workspace }}/install-release;${{ github.workspace }}/quantlib/build" `
-            -DBOOST_ROOT="C:/local/boost_${{ env.BOOST_VERSION }}" `
-            -DBoost_USE_STATIC_LIBS=ON `
-            -DBoost_USE_STATIC_RUNTIME=ON
-          cmake --build build --config Release
-        shell: pwsh
-
-      - name: Run Forge Benchmark
-        run: |
-          cd benchmark-build/build
-          $benchExe = Get-ChildItem -Recurse -Filter "swap_xva_forge.exe" | Select-Object -First 1
-          if ($benchExe) {
-            Write-Host "Running benchmark from: $($benchExe.FullName)"
-            & $benchExe.FullName
+          cd quantlib/build
+          # Find and run the test executable (OUTPUT_NAME is quantlib-forge-test-suite)
+          $testExe = Get-ChildItem -Recurse -Filter "quantlib-forge-test-suite.exe" | Select-Object -First 1
+          if ($testExe) {
+            Write-Host "Running tests from: $($testExe.FullName)"
+            & $testExe.FullName --log_level=message --run_test=QuantLibForgeTests/SwapXvaTests
           } else {
-            Write-Host "Benchmark executable not found!"
+            Write-Host "Test executable not found!"
             exit 1
           }
         shell: pwsh
@@ -198,28 +177,15 @@ jobs:
             -DQL_EXTRA_LINK_LIBRARIES="QuantLib-Forge"
           cmake --build build --config Release
 
-      - name: Build Forge Benchmark
+      - name: Run QuantLib-Forge Tests
         run: |
-          mkdir benchmark-build
-          cd benchmark-build
-          cat > CMakeLists.txt << 'EOF'
-          cmake_minimum_required(VERSION 3.15)
-          project(SwapXvaForge LANGUAGES CXX)
-          find_package(QuantLib REQUIRED)
-          find_package(Forge CONFIG REQUIRED)
-          add_executable(swap_xva_forge $ENV{GITHUB_WORKSPACE}/quantlib-forge/benchmarks/swap_xva_forge.cpp)
-          target_link_libraries(swap_xva_forge PRIVATE QuantLib::QuantLib Forge::forge)
-          target_compile_features(swap_xva_forge PUBLIC cxx_std_17)
-          EOF
-          cmake -B build -S . \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH="${{ github.workspace }}/install-release;${{ github.workspace }}/quantlib/build"
-          cmake --build build --config Release
-
-      - name: Run Forge Benchmark
-        run: |
-          cd benchmark-build/build
-          echo "============================================================="
-          echo "  Forge Benchmark - QuantLib with Forge (JIT + AAD)"
-          echo "============================================================="
-          ./swap_xva_forge
+          cd quantlib/build
+          # Find and run the test executable (OUTPUT_NAME is quantlib-forge-test-suite)
+          testExe=$(find . -name "quantlib-forge-test-suite" -type f | head -1)
+          if [ -n "$testExe" ]; then
+            echo "Running tests from: $testExe"
+            "$testExe" --log_level=message --run_test=QuantLibForgeTests/SwapXvaTests
+          else
+            echo "Test executable not found!"
+            exit 1
+          fi
