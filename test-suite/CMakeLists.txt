@@ -12,8 +12,6 @@
 ##############################################################################
 
 set(QLFORGE_TEST_SOURCES
-    swap_xva.cpp
-
     utilities_forge.cpp
     quantlibtestsuite_forge.cpp
 )
