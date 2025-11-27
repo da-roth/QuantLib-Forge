@@ -69,6 +69,11 @@ jobs:
           cd QuantLib/build
           cmake --build .
 
+      - name: Install QuantLib
+        run: |
+          cd QuantLib/build
+          cmake --install . --prefix ${{ github.workspace }}/install
+
       - name: Build XAD Benchmark
         run: |
           mkdir benchmark-build
@@ -84,7 +89,7 @@ jobs:
           EOF
           cmake -G Ninja -DBOOST_ROOT=/usr \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH=${{ github.workspace }}/QuantLib/build \
+            -DCMAKE_PREFIX_PATH=${{ github.workspace }}/install \
             -DBENCHMARK_SOURCE=${{ github.workspace }}/quantlib-forge/benchmarks/swap_xva_xad.cpp \
             -DQLRISKS_TEST_INCLUDE=${{ github.workspace }}/QuantLib-Risks-Cpp/test-suite \
             .
