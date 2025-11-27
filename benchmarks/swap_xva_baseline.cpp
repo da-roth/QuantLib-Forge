@@ -153,9 +153,7 @@ namespace {
     struct MarketScenario {
         std::vector<double> flatData;
 
-        std::vector<double> flatten() const {
-            return flatData;
-        }
+        const std::vector<double>& flatten() const { return flatData; }
 
         static constexpr Size totalRiskFactors() { return 100; }
     };
