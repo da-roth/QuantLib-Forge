@@ -11,8 +11,8 @@
 #
 ##############################################################################
 
-option(QLFORGE_DISABLE_AAD "Disable using Forge AAD for QuantLib's Real, allowing to run samples with double" OFF)
-option(QLFORGE_BUILD_TEST_SUITE "Build QuantLib-Forge test suite" ON)
+option(QL_FORGE_DISABLE_AAD "Disable using Forge AAD for QuantLib's Real, allowing to run samples with double" OFF)
+option(QL_FORGE_BUILD_TEST_SUITE "Build QuantLib-Forge test suite" ON)
 
 # ========== Forge Integration: Use pre-built Forge package ==========
 # Forge is now built and installed separately via forge/tools/packaging
@@ -39,7 +39,6 @@ endif()
 # TODO: Add examples
 # add_subdirectory(Examples)
 
-if(NOT QLFORGE_DISABLE_AAD)
-    # the test suite requires AAD to be enabled
-    add_subdirectory(test-suite)
+if(NOT QL_FORGE_DISABLE_AAD AND QL_FORGE_BUILD_TEST_SUITE)
+    add_subdirectory(forge-test-suite)
 endif()
