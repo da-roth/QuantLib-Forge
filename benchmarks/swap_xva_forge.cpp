@@ -621,31 +621,25 @@ namespace {
                     std::vector<double> scenarioInputs = scenario.flatten();
 
                     for (Size i = 0; i < config.numRiskFactors; ++i) {
-                        double inputVal[1] = {scenarioInputs[i]};
-                        buffer->setLanes(rateNodeIds[i], inputVal);
+                        buffer->setValue(rateNodeIds[i], scenarioInputs[i]);
                     }
                     kernel->execute(*buffer);
                     numEvaluations++;
 
-                    double npvOutput[1];
-                    buffer->getLanes(npvNodeId, npvOutput);
-                    double baseNpv = npvOutput[0];
+                    double baseNpv = buffer->getValue(npvNodeId);
                     results.exposures[s][t][p] = std::max(0.0, baseNpv);
                     totalExposure += results.exposures[s][t][p];
 
                     results.sensitivities[s][t][p].resize(config.numRiskFactors);
                     for (Size i = 0; i < config.numRiskFactors; ++i) {
-                        double bumpedVal[1] = {scenarioInputs[i] + config.bumpSize};
-                        buffer->setLanes(rateNodeIds[i], bumpedVal);
+                        buffer->setValue(rateNodeIds[i], scenarioInputs[i] + config.bumpSize);
                         kernel->execute(*buffer);
                         numEvaluations++;
 
-                        buffer->getLanes(npvNodeId, npvOutput);
-                        double bumpedNpv = npvOutput[0];
+                        double bumpedNpv = buffer->getValue(npvNodeId);
                         results.sensitivities[s][t][p][i] = (bumpedNpv - baseNpv) / config.bumpSize;
 
-                        double originalVal[1] = {scenarioInputs[i]};
-                        buffer->setLanes(rateNodeIds[i], originalVal);
+                        buffer->setValue(rateNodeIds[i], scenarioInputs[i]);
                     }
                     numScenarios++;
                 }
@@ -748,22 +742,18 @@ namespace {
                     std::vector<double> scenarioInputs = scenario.flatten();
 
                     for (Size i = 0; i < config.numRiskFactors; ++i) {
-                        double inputVal[1] = {scenarioInputs[i]};
-                        buffer->setLanes(rateNodeIds[i], inputVal);
+                        buffer->setValue(rateNodeIds[i], scenarioInputs[i]);
                     }
 
                     buffer->clearGradients();
                     kernel->execute(*buffer);
                     numEvaluations++;
 
-                    double npvOutput[1];
-                    buffer->getLanes(npvNodeId, npvOutput);
-                    double npvValue = npvOutput[0];
+                    double npvValue = buffer->getValue(npvNodeId);
                     results.exposures[s][t][p] = std::max(0.0, npvValue);
                     totalExposure += results.exposures[s][t][p];
 
-                    double* gradOutputs[4] = {gradOutput.data(), nullptr, nullptr, nullptr};
-                    buffer->getGradientLanes(gradientIndices, gradOutputs);
+                    buffer->getGradientsDirect(gradientIndices, gradOutput.data());
                     results.sensitivities[s][t][p] = gradOutput;
                     numScenarios++;
                 }

@@ -76,30 +76,24 @@ TestResult testBasicArithmetic() {
     std::vector<double> grad(2);
 
     // Test 1: x=2, y=3 -> z=8, dz/dx=4, dz/dy=2
-    double xInput[1] = {2.0}, yInput[1] = {3.0};
-    buffer->setLanes(xId, xInput);
-    buffer->setLanes(yId, yInput);
+    buffer->setValue(xId, 2.0);
+    buffer->setValue(yId, 3.0);
     buffer->clearGradients();  // Must clear before execute!
     kernel->execute(*buffer);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
 
-    double zOutput[1];
-    buffer->getLanes(zId, zOutput);
-    double z1 = zOutput[0];
+    double z1 = buffer->getValue(zId);
     result.v1_ok = std::abs(z1 - 8.0) < 1e-9;
     result.g1_ok = std::abs(grad[0] - 4.0) < 1e-9 && std::abs(grad[1] - 2.0) < 1e-9;
 
     // Test 2 (re-eval): x=4, y=5 -> z=24, dz/dx=6, dz/dy=4
-    xInput[0] = 4.0; yInput[0] = 5.0;
-    buffer->setLanes(xId, xInput);
-    buffer->setLanes(yId, yInput);
+    buffer->setValue(xId, 4.0);
+    buffer->setValue(yId, 5.0);
     buffer->clearGradients();  // Must clear before execute!
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
 
-    buffer->getLanes(zId, zOutput);
-    double z2 = zOutput[0];
+    double z2 = buffer->getValue(zId);
     result.v2_ok = std::abs(z2 - 24.0) < 1e-9;
     result.g2_ok = std::abs(grad[0] - 6.0) < 1e-9 && std::abs(grad[1] - 4.0) < 1e-9;
 
@@ -141,27 +135,21 @@ TestResult testPassThrough() {
     std::vector<double> grad(1);
 
     // Test 1: x=100 -> z=100, dz/dx=1
-    double xInput[1] = {100.0};
-    buffer->setLanes(xId, xInput);
+    buffer->setValue(xId, 100.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
 
-    double zOutput[1];
-    buffer->getLanes(zId, zOutput);
-    result.v1_ok = std::abs(zOutput[0] - 100.0) < 1e-9;
+    result.v1_ok = std::abs(buffer->getValue(zId) - 100.0) < 1e-9;
     result.g1_ok = std::abs(grad[0] - 1.0) < 1e-9;
 
     // Test 2: x=200 -> z=200, dz/dx=1
-    xInput[0] = 200.0;
-    buffer->setLanes(xId, xInput);
+    buffer->setValue(xId, 200.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
 
-    buffer->getLanes(zId, zOutput);
-    result.v2_ok = std::abs(zOutput[0] - 200.0) < 1e-9;
+    result.v2_ok = std::abs(buffer->getValue(zId) - 200.0) < 1e-9;
     result.g2_ok = std::abs(grad[0] - 1.0) < 1e-9;
 
     return result;
@@ -198,27 +186,21 @@ TestResult testLog() {
     std::vector<double> grad(1);
 
     // Test 1: x=2 -> z=log(2), dz/dx=0.5
-    double xInput[1] = {2.0};
-    buffer->setLanes(xId, xInput);
+    buffer->setValue(xId, 2.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
 
-    double zOutput[1];
-    buffer->getLanes(zId, zOutput);
-    result.v1_ok = std::abs(zOutput[0] - std::log(2.0)) < 1e-9;
+    result.v1_ok = std::abs(buffer->getValue(zId) - std::log(2.0)) < 1e-9;
     result.g1_ok = std::abs(grad[0] - 0.5) < 1e-9;
 
     // Test 2: x=4 -> z=log(4), dz/dx=0.25
-    xInput[0] = 4.0;
-    buffer->setLanes(xId, xInput);
+    buffer->setValue(xId, 4.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
 
-    buffer->getLanes(zId, zOutput);
-    result.v2_ok = std::abs(zOutput[0] - std::log(4.0)) < 1e-9;
+    result.v2_ok = std::abs(buffer->getValue(zId) - std::log(4.0)) < 1e-9;
     result.g2_ok = std::abs(grad[0] - 0.25) < 1e-9;
 
     if (!result.g2_ok) {
@@ -259,27 +241,21 @@ TestResult testExp() {
     std::vector<double> grad(1);
 
     // Test 1: x=1 -> z=e, dz/dx=e
-    double xInput[1] = {1.0};
-    buffer->setLanes(xId, xInput);
+    buffer->setValue(xId, 1.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
 
-    double zOutput[1];
-    buffer->getLanes(zId, zOutput);
-    result.v1_ok = std::abs(zOutput[0] - std::exp(1.0)) < 1e-9;
+    result.v1_ok = std::abs(buffer->getValue(zId) - std::exp(1.0)) < 1e-9;
     result.g1_ok = std::abs(grad[0] - std::exp(1.0)) < 1e-9;
 
     // Test 2: x=2 -> z=e^2, dz/dx=e^2
-    xInput[0] = 2.0;
-    buffer->setLanes(xId, xInput);
+    buffer->setValue(xId, 2.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
 
-    buffer->getLanes(zId, zOutput);
-    result.v2_ok = std::abs(zOutput[0] - std::exp(2.0)) < 1e-9;
+    result.v2_ok = std::abs(buffer->getValue(zId) - std::exp(2.0)) < 1e-9;
     result.g2_ok = std::abs(grad[0] - std::exp(2.0)) < 1e-9;
 
     if (!result.g2_ok) {
@@ -319,27 +295,21 @@ TestResult testDivision() {
     std::vector<double> grad(1);
 
     // Test 1: x=2 -> z=0.5, dz/dx=-0.25
-    double xInput[1] = {2.0};
-    buffer->setLanes(xId, xInput);
+    buffer->setValue(xId, 2.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
 
-    double zOutput[1];
-    buffer->getLanes(zId, zOutput);
-    result.v1_ok = std::abs(zOutput[0] - 0.5) < 1e-9;
+    result.v1_ok = std::abs(buffer->getValue(zId) - 0.5) < 1e-9;
     result.g1_ok = std::abs(grad[0] - (-0.25)) < 1e-9;
 
     // Test 2: x=4 -> z=0.25, dz/dx=-0.0625
-    xInput[0] = 4.0;
-    buffer->setLanes(xId, xInput);
+    buffer->setValue(xId, 4.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
 
-    buffer->getLanes(zId, zOutput);
-    result.v2_ok = std::abs(zOutput[0] - 0.25) < 1e-9;
+    result.v2_ok = std::abs(buffer->getValue(zId) - 0.25) < 1e-9;
     result.g2_ok = std::abs(grad[0] - (-0.0625)) < 1e-9;
 
     if (!result.g2_ok) {
@@ -379,27 +349,21 @@ TestResult testSqrt() {
     std::vector<double> grad(1);
 
     // Test 1: x=4 -> z=2, dz/dx=0.25
-    double xInput[1] = {4.0};
-    buffer->setLanes(xId, xInput);
+    buffer->setValue(xId, 4.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
 
-    double zOutput[1];
-    buffer->getLanes(zId, zOutput);
-    result.v1_ok = std::abs(zOutput[0] - 2.0) < 1e-9;
+    result.v1_ok = std::abs(buffer->getValue(zId) - 2.0) < 1e-9;
     result.g1_ok = std::abs(grad[0] - 0.25) < 1e-9;
 
     // Test 2: x=16 -> z=4, dz/dx=0.125
-    xInput[0] = 16.0;
-    buffer->setLanes(xId, xInput);
+    buffer->setValue(xId, 16.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
 
-    buffer->getLanes(zId, zOutput);
-    result.v2_ok = std::abs(zOutput[0] - 4.0) < 1e-9;
+    result.v2_ok = std::abs(buffer->getValue(zId) - 4.0) < 1e-9;
     result.g2_ok = std::abs(grad[0] - 0.125) < 1e-9;
 
     if (!result.g2_ok) {
@@ -440,27 +404,21 @@ TestResult testLinear() {
     std::vector<double> grad(1);
 
     // Test 1: x=5 -> z=13, dz/dx=2
-    double xInput[1] = {5.0};
-    buffer->setLanes(xId, xInput);
+    buffer->setValue(xId, 5.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
 
-    double zOutput[1];
-    buffer->getLanes(zId, zOutput);
-    result.v1_ok = std::abs(zOutput[0] - 13.0) < 1e-9;
+    result.v1_ok = std::abs(buffer->getValue(zId) - 13.0) < 1e-9;
     result.g1_ok = std::abs(grad[0] - 2.0) < 1e-9;
 
     // Test 2: x=10 -> z=23, dz/dx=2
-    xInput[0] = 10.0;
-    buffer->setLanes(xId, xInput);
+    buffer->setValue(xId, 10.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
 
-    buffer->getLanes(zId, zOutput);
-    result.v2_ok = std::abs(zOutput[0] - 23.0) < 1e-9;
+    result.v2_ok = std::abs(buffer->getValue(zId) - 23.0) < 1e-9;
     result.g2_ok = std::abs(grad[0] - 2.0) < 1e-9;
 
     return result;

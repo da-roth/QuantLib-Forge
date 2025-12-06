@@ -171,9 +171,7 @@ namespace {
     kernel->execute(*buffer);
 
         // Get the price value
-        double priceOutput[1];
-        buffer->getLanes(priceNodeId, priceOutput);
-        double priceValue = priceOutput[0];
+        double priceValue = buffer->getValue(priceNodeId);
 
         // Get gradients directly
         int vectorWidth = buffer->getVectorWidth();
@@ -185,8 +183,7 @@ namespace {
             static_cast<size_t>(vNodeId) * vectorWidth
         };
         std::vector<double> gradients(5);
-        double* gradOutputs[4] = {gradients.data(), nullptr, nullptr, nullptr};
-        buffer->getGradientLanes(gradientIndices, gradOutputs);
+        buffer->getGradientsDirect(gradientIndices, gradients.data());
 
         derivatives.strike = gradients[0];
         derivatives.u = gradients[1];
@@ -1040,14 +1037,13 @@ BOOST_AUTO_TEST_CASE(testForgeBasicArithmetic) {
     int vw = buffer->getVectorWidth();
     std::vector<size_t> gradIdx = {static_cast<size_t>(xId)*vw, static_cast<size_t>(yId)*vw};
     std::vector<double> grad(2);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
 
     // Test 1: x=2, y=3 -> z=8, dz/dx=4, dz/dy=2
     buffer->setValue(xId, 2.0);
     buffer->setValue(yId, 3.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v1 = std::abs(buffer->getValue(zId) - 8.0) < 1e-9;
     bool g1 = std::abs(grad[0] - 4.0) < 1e-9 && std::abs(grad[1] - 2.0) < 1e-9;
 
@@ -1056,7 +1052,7 @@ BOOST_AUTO_TEST_CASE(testForgeBasicArithmetic) {
     buffer->setValue(yId, 5.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v2 = std::abs(buffer->getValue(zId) - 24.0) < 1e-9;
     bool g2 = std::abs(grad[0] - 6.0) < 1e-9 && std::abs(grad[1] - 4.0) < 1e-9;
 
@@ -1089,13 +1085,12 @@ BOOST_AUTO_TEST_CASE(testForgeSimpleQuote) {
     int vw = buffer->getVectorWidth();
     std::vector<size_t> gradIdx = {static_cast<size_t>(inputId) * vw};
     std::vector<double> grad(1);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
 
     // Test 1: input=100
     buffer->setValue(inputId, 100.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v1 = std::abs(buffer->getValue(outputId) - 100.0) < 1e-9;
     bool g1 = std::abs(grad[0] - 1.0) < 1e-9;
 
@@ -1103,7 +1098,7 @@ BOOST_AUTO_TEST_CASE(testForgeSimpleQuote) {
     buffer->setValue(inputId, 150.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v2 = std::abs(buffer->getValue(outputId) - 150.0) < 1e-9;
     bool g2 = std::abs(grad[0] - 1.0) < 1e-9;
 
@@ -1142,13 +1137,12 @@ BOOST_AUTO_TEST_CASE(testForgeFlatForward) {
     int vw = buffer->getVectorWidth();
     std::vector<size_t> gradIdx = {static_cast<size_t>(rateId) * vw};
     std::vector<double> grad(1);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
 
     // Test 1: r=0.05
     buffer->setValue(rateId, 0.05);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v1 = std::abs(buffer->getValue(dfId) - std::exp(-0.05)) < 1e-6;
     bool g1 = std::abs(grad[0] - (-std::exp(-0.05))) < 1e-4;
 
@@ -1156,7 +1150,7 @@ BOOST_AUTO_TEST_CASE(testForgeFlatForward) {
     buffer->setValue(rateId, 0.08);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v2 = std::abs(buffer->getValue(dfId) - std::exp(-0.08)) < 1e-6;
     bool g2 = std::abs(grad[0] - (-std::exp(-0.08))) < 1e-4;
 
@@ -1195,13 +1189,12 @@ BOOST_AUTO_TEST_CASE(testForgeBlackConstantVol) {
     int vw = buffer->getVectorWidth();
     std::vector<size_t> gradIdx = {static_cast<size_t>(volId) * vw};
     std::vector<double> grad(1);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
 
     // Test 1: vol=0.20
     buffer->setValue(volId, 0.20);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v1 = std::abs(buffer->getValue(blackVolId) - 0.20) < 1e-9;
     bool g1 = std::abs(grad[0] - 1.0) < 1e-6;
 
@@ -1209,7 +1202,7 @@ BOOST_AUTO_TEST_CASE(testForgeBlackConstantVol) {
     buffer->setValue(volId, 0.30);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v2 = std::abs(buffer->getValue(blackVolId) - 0.30) < 1e-9;
     bool g2 = std::abs(grad[0] - 1.0) < 1e-6;
 
@@ -1260,7 +1253,6 @@ BOOST_AUTO_TEST_CASE(testForgeBlackScholesProcess) {
     std::vector<size_t> gradIdx = {
         static_cast<size_t>(spotId)*vw, static_cast<size_t>(rateId)*vw, static_cast<size_t>(volId)*vw};
     std::vector<double> grad(3);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
 
     // Test 1: spot=100
     buffer->setValue(spotId, 100.0);
@@ -1268,7 +1260,7 @@ BOOST_AUTO_TEST_CASE(testForgeBlackScholesProcess) {
     buffer->setValue(volId, 0.20);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v1 = std::abs(buffer->getValue(x0Id) - 100.0) < 1e-9;
     bool g1 = std::abs(grad[0] - 1.0) < 1e-6 && std::abs(grad[1]) < 1e-9 && std::abs(grad[2]) < 1e-9;
 
@@ -1278,7 +1270,7 @@ BOOST_AUTO_TEST_CASE(testForgeBlackScholesProcess) {
     buffer->setValue(volId, 0.25);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v2 = std::abs(buffer->getValue(x0Id) - 120.0) < 1e-9;
     bool g2 = std::abs(grad[0] - 1.0) < 1e-6 && std::abs(grad[1]) < 1e-9 && std::abs(grad[2]) < 1e-9;
 
@@ -1320,7 +1312,7 @@ BOOST_AUTO_TEST_CASE(testForgeBasicArithmetic_NoOpt) {
     buffer->setValue(yId, 3.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v1 = std::abs(buffer->getValue(zId) - 8.0) < 1e-9;
     bool g1 = std::abs(grad[0] - 4.0) < 1e-9 && std::abs(grad[1] - 2.0) < 1e-9;
 
@@ -1328,7 +1320,7 @@ BOOST_AUTO_TEST_CASE(testForgeBasicArithmetic_NoOpt) {
     buffer->setValue(yId, 5.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v2 = std::abs(buffer->getValue(zId) - 24.0) < 1e-9;
     bool g2 = std::abs(grad[0] - 6.0) < 1e-9 && std::abs(grad[1] - 4.0) < 1e-9;
 
@@ -1366,14 +1358,14 @@ BOOST_AUTO_TEST_CASE(testForgeSimpleQuote_NoOpt) {
     buffer->setValue(inputId, 100.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v1 = std::abs(buffer->getValue(outputId) - 100.0) < 1e-9;
     bool g1 = std::abs(grad[0] - 1.0) < 1e-9;
 
     buffer->setValue(inputId, 150.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v2 = std::abs(buffer->getValue(outputId) - 150.0) < 1e-9;
     bool g2 = std::abs(grad[0] - 1.0) < 1e-9;
 
@@ -1417,14 +1409,14 @@ BOOST_AUTO_TEST_CASE(testForgeFlatForward_NoOpt) {
     buffer->setValue(rateId, 0.05);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v1 = std::abs(buffer->getValue(dfId) - std::exp(-0.05)) < 1e-6;
     bool g1 = std::abs(grad[0] - (-std::exp(-0.05))) < 1e-4;
 
     buffer->setValue(rateId, 0.08);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v2 = std::abs(buffer->getValue(dfId) - std::exp(-0.08)) < 1e-6;
     bool g2 = std::abs(grad[0] - (-std::exp(-0.08))) < 1e-4;
 
@@ -1468,14 +1460,14 @@ BOOST_AUTO_TEST_CASE(testForgeBlackConstantVol_NoOpt) {
     buffer->setValue(volId, 0.20);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v1 = std::abs(buffer->getValue(blackVolId) - 0.20) < 1e-9;
     bool g1 = std::abs(grad[0] - 1.0) < 1e-6;
 
     buffer->setValue(volId, 0.30);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v2 = std::abs(buffer->getValue(blackVolId) - 0.30) < 1e-9;
     bool g2 = std::abs(grad[0] - 1.0) < 1e-6;
 
@@ -1533,7 +1525,7 @@ BOOST_AUTO_TEST_CASE(testForgeBlackScholesProcess_NoOpt) {
     buffer->setValue(volId, 0.20);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v1 = std::abs(buffer->getValue(x0Id) - 100.0) < 1e-9;
     bool g1 = std::abs(grad[0] - 1.0) < 1e-6 && std::abs(grad[1]) < 1e-9 && std::abs(grad[2]) < 1e-9;
 
@@ -1542,7 +1534,7 @@ BOOST_AUTO_TEST_CASE(testForgeBlackScholesProcess_NoOpt) {
     buffer->setValue(volId, 0.25);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v2 = std::abs(buffer->getValue(x0Id) - 120.0) < 1e-9;
     bool g2 = std::abs(grad[0] - 1.0) < 1e-6 && std::abs(grad[1]) < 1e-9 && std::abs(grad[2]) < 1e-9;
 
@@ -1580,13 +1572,12 @@ BOOST_AUTO_TEST_CASE(testForgeErrorFunction) {
     int vw = buffer->getVectorWidth();
     std::vector<size_t> gradIdx = {static_cast<size_t>(xId) * vw};
     std::vector<double> grad(1);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
 
     // Test 1: x=0.5
     buffer->setValue(xId, 0.5);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     double expV1 = std::erf(0.5);
     double expG1 = 2.0 / std::sqrt(M_PI) * std::exp(-0.5 * 0.5);
     bool v1 = std::abs(buffer->getValue(resultId) - expV1) < 1e-6;
@@ -1596,7 +1587,7 @@ BOOST_AUTO_TEST_CASE(testForgeErrorFunction) {
     buffer->setValue(xId, 1.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     double expV2 = std::erf(1.0);
     double expG2 = 2.0 / std::sqrt(M_PI) * std::exp(-1.0);
     bool v2 = std::abs(buffer->getValue(resultId) - expV2) < 1e-6;
@@ -1631,13 +1622,12 @@ BOOST_AUTO_TEST_CASE(testForgeNormalDistribution) {
     int vw = buffer->getVectorWidth();
     std::vector<size_t> gradIdx = {static_cast<size_t>(xId) * vw};
     std::vector<double> grad(1);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
 
     // Test 1: x=0.5
     buffer->setValue(xId, 0.5);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     double expV1 = 1.0 / std::sqrt(2.0 * M_PI) * std::exp(-0.5 * 0.5 / 2.0);
     double expG1 = -0.5 * expV1;
     bool v1 = std::abs(buffer->getValue(pdfId) - expV1) < 1e-6;
@@ -1647,7 +1637,7 @@ BOOST_AUTO_TEST_CASE(testForgeNormalDistribution) {
     buffer->setValue(xId, 1.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     double expV2 = 1.0 / std::sqrt(2.0 * M_PI) * std::exp(-1.0 / 2.0);
     double expG2 = -1.0 * expV2;
     bool v2 = std::abs(buffer->getValue(pdfId) - expV2) < 1e-6;
@@ -1682,13 +1672,12 @@ BOOST_AUTO_TEST_CASE(testForgeCumulativeNormalDistribution) {
     int vw = buffer->getVectorWidth();
     std::vector<size_t> gradIdx = {static_cast<size_t>(xId) * vw};
     std::vector<double> grad(1);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
 
     // Test 1: x=0.5
     buffer->setValue(xId, 0.5);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     double expV1 = 0.5 * (1.0 + std::erf(0.5 / std::sqrt(2.0)));
     double expG1 = 1.0 / std::sqrt(2.0 * M_PI) * std::exp(-0.5 * 0.5 / 2.0);
     bool v1 = std::abs(buffer->getValue(resultId) - expV1) < 1e-6;
@@ -1698,7 +1687,7 @@ BOOST_AUTO_TEST_CASE(testForgeCumulativeNormalDistribution) {
     buffer->setValue(xId, 1.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     double expV2 = 0.5 * (1.0 + std::erf(1.0 / std::sqrt(2.0)));
     double expG2 = 1.0 / std::sqrt(2.0 * M_PI) * std::exp(-1.0 / 2.0);
     bool v2 = std::abs(buffer->getValue(resultId) - expV2) < 1e-6;
@@ -1733,13 +1722,12 @@ BOOST_AUTO_TEST_CASE(testForgeCumulativeNormalDistributionTail) {
     int vw = buffer->getVectorWidth();
     std::vector<size_t> gradIdx = {static_cast<size_t>(xId) * vw};
     std::vector<double> grad(1);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
 
     // Test 1: x=-5.0
     buffer->setValue(xId, -5.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     double expV1 = 0.5 * (1.0 + std::erf(-5.0 / std::sqrt(2.0)));
     double expG1 = 1.0 / std::sqrt(2.0 * M_PI) * std::exp(-5.0 * 5.0 / 2.0);
     bool v1 = std::abs(buffer->getValue(resultId) - expV1) / expV1 < 1e-4;
@@ -1749,7 +1737,7 @@ BOOST_AUTO_TEST_CASE(testForgeCumulativeNormalDistributionTail) {
     buffer->setValue(xId, -4.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     double expV2 = 0.5 * (1.0 + std::erf(-4.0 / std::sqrt(2.0)));
     double expG2 = 1.0 / std::sqrt(2.0 * M_PI) * std::exp(-4.0 * 4.0 / 2.0);
     bool v2 = std::abs(buffer->getValue(resultId) - expV2) / expV2 < 1e-4;
@@ -1784,13 +1772,12 @@ BOOST_AUTO_TEST_CASE(testForgeNormalDistributionExtremeTail) {
     int vw = buffer->getVectorWidth();
     std::vector<size_t> gradIdx = {static_cast<size_t>(xId) * vw};
     std::vector<double> grad(1);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
 
     // Test 1: x=40
     buffer->setValue(xId, 40.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v1 = std::abs(buffer->getValue(pdfId)) < 1e-300;
     bool g1 = std::abs(grad[0]) < 1e-100;
 
@@ -1798,7 +1785,7 @@ BOOST_AUTO_TEST_CASE(testForgeNormalDistributionExtremeTail) {
     buffer->setValue(xId, 50.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v2 = std::abs(buffer->getValue(pdfId)) < 1e-300;
     bool g2 = std::abs(grad[0]) < 1e-100;
 
@@ -1838,13 +1825,12 @@ BOOST_AUTO_TEST_CASE(testForgeStdLog) {
     int vw = buffer->getVectorWidth();
     std::vector<size_t> gradIdx = {static_cast<size_t>(xId) * vw};
     std::vector<double> grad(1);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
 
     // Test 1: x=2
     buffer->setValue(xId, 2.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v1 = std::abs(buffer->getValue(resultId) - std::log(2.0)) < 1e-10;
     bool g1 = std::abs(grad[0] - 0.5) < 1e-6;
 
@@ -1852,7 +1838,7 @@ BOOST_AUTO_TEST_CASE(testForgeStdLog) {
     buffer->setValue(xId, 5.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v2 = std::abs(buffer->getValue(resultId) - std::log(5.0)) < 1e-10;
     bool g2 = std::abs(grad[0] - 0.2) < 1e-6;
 
@@ -1887,14 +1873,13 @@ BOOST_AUTO_TEST_CASE(testForgeStdPow) {
     int vw = buffer->getVectorWidth();
     std::vector<size_t> gradIdx = {static_cast<size_t>(baseId)*vw, static_cast<size_t>(expId)*vw};
     std::vector<double> grad(2);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
 
     // Test 1: base=2, exp=3 -> 8, grads: 12, 5.545
     buffer->setValue(baseId, 2.0);
     buffer->setValue(expId, 3.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v1 = std::abs(buffer->getValue(resultId) - 8.0) < 1e-10;
     bool g1 = std::abs(grad[0] - 12.0) < 1e-6 && std::abs(grad[1] - 8.0*std::log(2.0)) < 1e-6;
 
@@ -1903,7 +1888,7 @@ BOOST_AUTO_TEST_CASE(testForgeStdPow) {
     buffer->setValue(expId, 2.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v2 = std::abs(buffer->getValue(resultId) - 9.0) < 1e-10;
     bool g2 = std::abs(grad[0] - 6.0) < 1e-6 && std::abs(grad[1] - 9.0*std::log(3.0)) < 1e-6;
 
@@ -1937,14 +1922,13 @@ BOOST_AUTO_TEST_CASE(testForgeLogRatio) {
     int vw = buffer->getVectorWidth();
     std::vector<size_t> gradIdx = {static_cast<size_t>(aId)*vw, static_cast<size_t>(bId)*vw};
     std::vector<double> grad(2);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
 
     // Test 1: a=100, b=90
     buffer->setValue(aId, 100.0);
     buffer->setValue(bId, 90.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v1 = std::abs(buffer->getValue(resultId) - std::log(100.0/90.0)) < 1e-10;
     bool g1 = std::abs(grad[0] - 0.01) < 1e-6 && std::abs(grad[1] - (-1.0/90.0)) < 1e-6;
 
@@ -1953,7 +1937,7 @@ BOOST_AUTO_TEST_CASE(testForgeLogRatio) {
     buffer->setValue(bId, 80.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v2 = std::abs(buffer->getValue(resultId) - std::log(120.0/80.0)) < 1e-10;
     bool g2 = std::abs(grad[0] - (1.0/120.0)) < 1e-6 && std::abs(grad[1] - (-1.0/80.0)) < 1e-6;
 
@@ -1999,7 +1983,7 @@ BOOST_AUTO_TEST_CASE(testForgeBarrierX1Formula) {
     buffer->setValue(muSigmaId, 0.05);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     double expV1 = std::log(90.0/100.0)/0.1 + 0.05;
     bool v1 = std::abs(buffer->getValue(x1Id) - expV1) < 1e-10;
     bool g1 = std::abs(grad[0] - 1.0/(90.0*0.1)) < 1e-6;
@@ -2011,7 +1995,7 @@ BOOST_AUTO_TEST_CASE(testForgeBarrierX1Formula) {
     buffer->setValue(muSigmaId, 0.05);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     double expV2 = std::log(100.0/90.0)/0.1 + 0.05;
     bool v2 = std::abs(buffer->getValue(x1Id) - expV2) < 1e-10;
     bool g2 = std::abs(grad[0] - 1.0/(100.0*0.1)) < 1e-6;
@@ -2049,7 +2033,6 @@ BOOST_AUTO_TEST_CASE(testForgeBarrierHSPowFormula) {
     int vw = buffer->getVectorWidth();
     std::vector<size_t> gradIdx = {static_cast<size_t>(barrierId)*vw, static_cast<size_t>(underlyingId)*vw};
     std::vector<double> grad(2);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
 
     // Test 1: barrier=70, underlying=90, mu=0.5
     buffer->setValue(barrierId, 70.0);
@@ -2057,7 +2040,7 @@ BOOST_AUTO_TEST_CASE(testForgeBarrierHSPowFormula) {
     buffer->setValue(muId, 0.5);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     double expV1 = std::pow(70.0/90.0, 1.0);
     bool v1 = std::abs(buffer->getValue(powHS0Id) - expV1) < 1e-10;
     bool g1 = std::abs(grad[0]) > 1e-10 && std::abs(grad[1]) > 1e-10;
@@ -2068,7 +2051,7 @@ BOOST_AUTO_TEST_CASE(testForgeBarrierHSPowFormula) {
     buffer->setValue(muId, 0.5);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     double expV2 = std::pow(80.0/100.0, 1.0);
     bool v2 = std::abs(buffer->getValue(powHS0Id) - expV2) < 1e-10;
     bool g2 = std::abs(grad[0]) > 1e-10 && std::abs(grad[1]) > 1e-10;
@@ -2114,7 +2097,7 @@ BOOST_AUTO_TEST_CASE(testForgeBarrierAFunction) {
     buffer->setValue(strikeId, 100.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     double x1_exp = std::log(90.0/100.0)/0.1 + 0.05;
     double N1_exp = 0.5*(1.0 + std::erf(x1_exp/std::sqrt(2.0)));
     double N2_exp = 0.5*(1.0 + std::erf((x1_exp-0.1)/std::sqrt(2.0)));
@@ -2127,7 +2110,7 @@ BOOST_AUTO_TEST_CASE(testForgeBarrierAFunction) {
     buffer->setValue(strikeId, 90.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     double x1_exp2 = std::log(100.0/90.0)/0.1 + 0.05;
     double N1_exp2 = 0.5*(1.0 + std::erf(x1_exp2/std::sqrt(2.0)));
     double N2_exp2 = 0.5*(1.0 + std::erf((x1_exp2-0.1)/std::sqrt(2.0)));
@@ -2167,14 +2150,13 @@ BOOST_AUTO_TEST_CASE(testForgeBarrierCFunctionWithZeroCheck) {
     int vw = buffer->getVectorWidth();
     std::vector<size_t> gradIdx = {static_cast<size_t>(xId)*vw, static_cast<size_t>(powHSId)*vw};
     std::vector<double> grad(2);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
 
     // Test 1: x=0.5, powHS=2.0
     buffer->setValue(xId, 0.5);
     buffer->setValue(powHSId, 2.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     double N1_exp = 0.5*(1.0 + std::erf(0.5/std::sqrt(2.0)));
     double expV1 = 2.0 * N1_exp;
     bool v1 = std::abs(buffer->getValue(resultId) - expV1) < 1e-6;
@@ -2185,7 +2167,7 @@ BOOST_AUTO_TEST_CASE(testForgeBarrierCFunctionWithZeroCheck) {
     buffer->setValue(powHSId, 3.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     double N1_exp2 = 0.5*(1.0 + std::erf(1.0/std::sqrt(2.0)));
     double expV2 = 3.0 * N1_exp2;
     bool v2 = std::abs(buffer->getValue(resultId) - expV2) < 1e-6;
@@ -2279,7 +2261,7 @@ BOOST_AUTO_TEST_CASE(testForgeBarrierWithProcessRetrieval) {
     buffer->setValue(volId, vol_val);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v1 = std::abs(buffer->getValue(AId) - A_exp) / std::abs(A_exp) < 0.01;
     bool g1 = std::abs(grad[0]) > 1e-10;
 
@@ -2293,7 +2275,7 @@ BOOST_AUTO_TEST_CASE(testForgeBarrierWithProcessRetrieval) {
     buffer->setValue(strikeId, strike_val2);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v2 = std::abs(buffer->getValue(AId) - A_exp2) / std::abs(A_exp2) < 0.01;
     bool g2 = std::abs(grad[0]) > 1e-10;
 
@@ -2344,7 +2326,7 @@ BOOST_AUTO_TEST_CASE(testForgeProcessX0Retrieval) {
     buffer->setValue(underlyingId, 90.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v1 = std::abs(buffer->getValue(x0Id) - 90.0) < 1e-10;
     bool g1 = std::abs(grad[0] - 1.0) < 1e-6;
 
@@ -2352,7 +2334,7 @@ BOOST_AUTO_TEST_CASE(testForgeProcessX0Retrieval) {
     buffer->setValue(underlyingId, 110.0);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v2 = std::abs(buffer->getValue(x0Id) - 110.0) < 1e-10;
     bool g2 = std::abs(grad[0] - 1.0) < 1e-6;
 
@@ -2397,13 +2379,12 @@ BOOST_AUTO_TEST_CASE(testForgeProcessDiscountRetrieval) {
     int vw = buffer->getVectorWidth();
     std::vector<size_t> gradIdx = {static_cast<size_t>(rateId) * vw};
     std::vector<double> grad(1);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
 
     // Test 1: rate=0.04
     buffer->setValue(rateId, 0.04);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     double expV1 = std::exp(-0.04 * T);
     double expG1 = -T * expV1;
     bool v1 = std::abs(buffer->getValue(discountId) - expV1) < 1e-6;
@@ -2413,7 +2394,7 @@ BOOST_AUTO_TEST_CASE(testForgeProcessDiscountRetrieval) {
     buffer->setValue(rateId, 0.06);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     double expV2 = std::exp(-0.06 * T);
     double expG2 = -T * expV2;
     bool v2 = std::abs(buffer->getValue(discountId) - expV2) < 1e-6;
@@ -2459,13 +2440,12 @@ BOOST_AUTO_TEST_CASE(testForgeProcessZeroRateRetrieval) {
     int vw = buffer->getVectorWidth();
     std::vector<size_t> gradIdx = {static_cast<size_t>(rateId) * vw};
     std::vector<double> grad(1);
-    double* gradOutputs[4] = {grad.data(), nullptr, nullptr, nullptr};
 
     // Test 1: rate=0.04
     buffer->setValue(rateId, 0.04);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v1 = std::abs(buffer->getValue(zeroRateId) - 0.04) < 1e-6;
     bool g1 = std::abs(grad[0] - 1.0) < 1e-3;
 
@@ -2473,7 +2453,7 @@ BOOST_AUTO_TEST_CASE(testForgeProcessZeroRateRetrieval) {
     buffer->setValue(rateId, 0.06);
     buffer->clearGradients();
     kernel->execute(*buffer);
-    buffer->getGradientLanes(gradIdx, gradOutputs);
+    buffer->getGradientsDirect(gradIdx, grad.data());
     bool v2 = std::abs(buffer->getValue(zeroRateId) - 0.06) < 1e-6;
     bool g2 = std::abs(grad[0] - 1.0) < 1e-3;
 
@@ -2961,8 +2941,7 @@ BOOST_AUTO_TEST_CASE(testForgeProcessBlackVolRetrieval) {
     int vectorWidth = buffer->getVectorWidth();
     std::vector<size_t> gradientIndices = {static_cast<size_t>(volId) * vectorWidth};
     std::vector<double> gradients(1);
-    double* gradOutputPtrs[4] = {gradients.data(), nullptr, nullptr, nullptr};
-    buffer->getGradientLanes(gradientIndices, gradOutputPtrs);
+    buffer->getGradientsDirect(gradientIndices, gradients.data());
 
     BOOST_TEST_MESSAGE("  d(blackVol)/d(vol): " << gradients[0] << " (expected 1.0)");
     BOOST_CHECK_CLOSE(gradients[0], 1.0, 1e-3);
@@ -3070,8 +3049,7 @@ BOOST_AUTO_TEST_CASE(testForgeBarrierMuCalculation) {
         static_cast<size_t>(volId) * vectorWidth
     };
     std::vector<double> gradients(2);
-    double* gradOutputPtrs[4] = {gradients.data(), nullptr, nullptr, nullptr};
-    buffer->getGradientLanes(gradientIndices, gradOutputPtrs);
+    buffer->getGradientsDirect(gradientIndices, gradients.data());
 
     // d(mu)/d(rate) = 1 / (vol^2) = 1 / 0.04 = 25
     // d(mu)/d(vol) = -2 * rate / (vol^3) = -2 * 0.04 / 0.008 = -10
@@ -3159,8 +3137,7 @@ BOOST_AUTO_TEST_CASE(testForgeProcessVarianceRetrieval) {
     int vectorWidth = buffer->getVectorWidth();
     std::vector<size_t> gradientIndices = {static_cast<size_t>(volId) * vectorWidth};
     std::vector<double> gradients(1);
-    double* gradOutputPtrs[4] = {gradients.data(), nullptr, nullptr, nullptr};
-    buffer->getGradientLanes(gradientIndices, gradOutputPtrs);
+    buffer->getGradientsDirect(gradientIndices, gradients.data());
 
     double expectedGrad = std::sqrt(T);  // d(vol*sqrt(T))/d(vol) = sqrt(T)
     BOOST_TEST_MESSAGE("  d(stdDev)/d(vol): " << gradients[0] << " (expected " << expectedGrad << ")");
@@ -3568,8 +3545,7 @@ BOOST_AUTO_TEST_CASE(testForgeComparisonBreaksGraph) {
         static_cast<size_t>(bId) * vectorWidth
     };
     std::vector<double> gradients(2);
-    double* gradOutputPtrs[4] = {gradients.data(), nullptr, nullptr, nullptr};
-    buffer->getGradientLanes(gradientIndices, gradOutputPtrs);
+    buffer->getGradientsDirect(gradientIndices, gradients.data());
 
     BOOST_TEST_MESSAGE("  d/da: " << gradients[0] << " (expected 2.0 for a*2)");
     BOOST_TEST_MESSAGE("  d/db: " << gradients[1] << " (expected 0.0 for a*2)");
@@ -3847,8 +3823,7 @@ BOOST_AUTO_TEST_CASE(testForgeVanillaOption) {
         static_cast<size_t>(volId) * vectorWidth
     };
     std::vector<double> gradients(4);
-    double* gradOutputPtrs[4] = {gradients.data(), nullptr, nullptr, nullptr};
-    buffer->getGradientLanes(gradientIndices, gradOutputPtrs);
+    buffer->getGradientsDirect(gradientIndices, gradients.data());
 
     BOOST_TEST_MESSAGE("  Gradients: d/dSpot=" << gradients[0]
                        << ", d/dStrike=" << gradients[1]
@@ -4210,8 +4185,7 @@ BOOST_AUTO_TEST_CASE(testForgeBarrierPricingOnlyStabilityCleaning) {
         static_cast<size_t>(vNodeId) * vectorWidth
     };
     std::vector<double> gradients(5);
-    double* gradOutputPtrs[4] = {gradients.data(), nullptr, nullptr, nullptr};
-    buffer->getGradientLanes(gradientIndices, gradOutputPtrs);
+    buffer->getGradientsDirect(gradientIndices, gradients.data());
 
     BOOST_TEST_MESSAGE("  Forge derivatives:");
     BOOST_TEST_MESSAGE("    d/dStrike: " << gradients[0] << " (expected: " << value(derivatives_bumping.strike) << ")");
@@ -4321,8 +4295,7 @@ BOOST_AUTO_TEST_CASE(testForgeBarrierKernelReuse) {
             static_cast<size_t>(vNodeId) * vectorWidth
         };
         std::vector<double> gradients(5);
-        double* gradOutputPtrs[4] = {gradients.data(), nullptr, nullptr, nullptr};
-    buffer->getGradientLanes(gradientIndices, gradOutputPtrs);
+        buffer->getGradientsDirect(gradientIndices, gradients.data());
 
         double priceDiff = std::abs(forgePrice - expectedVal) / std::abs(expectedVal) * 100.0;
 
