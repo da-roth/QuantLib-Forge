@@ -152,28 +152,29 @@ BOOST_AUTO_TEST_CASE(testBatesModelDerivatives, *boost::unit_test::disabled()) {
     auto kernel = compiler.compile(graph);
     auto buffer = forge::NodeValueBufferFactory::create(graph, *kernel);
 
-    buffer->setValue(riskFreeRateNodeId, riskFreeRateVal);
-    buffer->setValue(dividendRateNodeId, dividendRateVal);
-    buffer->setValue(strikeNodeId, strikeVal);
+    int vectorWidth = buffer->getVectorWidth();
+    double riskFreeRateIn[4] = {riskFreeRateVal, riskFreeRateVal, riskFreeRateVal, riskFreeRateVal}; buffer->setLanes(riskFreeRateNodeId, riskFreeRateIn);
+    double dividendRateIn[4] = {dividendRateVal, dividendRateVal, dividendRateVal, dividendRateVal}; buffer->setLanes(dividendRateNodeId, dividendRateIn);
+    double strikeIn[4] = {strikeVal, strikeVal, strikeVal, strikeVal}; buffer->setLanes(strikeNodeId, strikeIn);
 
     kernel->execute(*buffer);
 
-    double priceValue = buffer->getValue(priceNodeId);
+    double priceOut[4]; buffer->getLanes(priceNodeId, priceOut);
+    double priceValue = priceOut[0];
 
-    int vectorWidth = buffer->getVectorWidth();
     std::vector<size_t> gradientIndices = {
-        static_cast<size_t>(riskFreeRateNodeId) * vectorWidth,
-        static_cast<size_t>(dividendRateNodeId) * vectorWidth,
-        static_cast<size_t>(strikeNodeId) * vectorWidth
+        buffer->getBufferIndex(riskFreeRateNodeId),
+        buffer->getBufferIndex(dividendRateNodeId),
+        buffer->getBufferIndex(strikeNodeId)
     };
-    std::vector<double> gradients(3);
-    buffer->getGradientsDirect(gradientIndices, gradients.data());
+    std::vector<double> gradients(3 * vectorWidth);
+    buffer->getGradientLanes(gradientIndices, gradients.data());
 
     // compare
     QL_CHECK_CLOSE(expected, Real(priceValue), 1e-9);
-    QL_CHECK_CLOSE(gradient_bump[0], Real(gradients[0]), 1e-4);
-    QL_CHECK_CLOSE(gradient_bump[1], Real(gradients[1]), 1e-4);
-    QL_CHECK_CLOSE(gradient_bump[2], Real(gradients[2]), 1e-4);
+    QL_CHECK_CLOSE(gradient_bump[0], Real(gradients[0 * vectorWidth]), 1e-4);
+    QL_CHECK_CLOSE(gradient_bump[1], Real(gradients[1 * vectorWidth]), 1e-4);
+    QL_CHECK_CLOSE(gradient_bump[2], Real(gradients[2 * vectorWidth]), 1e-4);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

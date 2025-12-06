@@ -138,35 +138,36 @@ namespace {
         auto buffer = forge::NodeValueBufferFactory::create(graph, *kernel);
 
         // Set input values
-        buffer->setValue(nominalNodeId, value(values.nominal));
-        buffer->setValue(fixedRateNodeId, value(values.fixedRate));
-        buffer->setValue(forwardRateNodeId, value(values.forwardRate));
-        buffer->setValue(aNodeId, value(values.a));
-        buffer->setValue(sigmaNodeId, value(values.sigma));
+        int vectorWidth = buffer->getVectorWidth();
+        double nominalVal[4] = {value(values.nominal), value(values.nominal), value(values.nominal), value(values.nominal)}; buffer->setLanes(nominalNodeId, nominalVal);
+        double fixedRateVal[4] = {value(values.fixedRate), value(values.fixedRate), value(values.fixedRate), value(values.fixedRate)}; buffer->setLanes(fixedRateNodeId, fixedRateVal);
+        double forwardRateVal[4] = {value(values.forwardRate), value(values.forwardRate), value(values.forwardRate), value(values.forwardRate)}; buffer->setLanes(forwardRateNodeId, forwardRateVal);
+        double aVal[4] = {value(values.a), value(values.a), value(values.a), value(values.a)}; buffer->setLanes(aNodeId, aVal);
+        double sigmaVal[4] = {value(values.sigma), value(values.sigma), value(values.sigma), value(values.sigma)}; buffer->setLanes(sigmaNodeId, sigmaVal);
 
         // Execute (forward + backward in one call)
         kernel->execute(*buffer);
 
         // Get the price value
-        double priceValue = buffer->getValue(priceNodeId);
+        double priceOut[4]; buffer->getLanes(priceNodeId, priceOut);
+        double priceValue = priceOut[0];
 
         // Get gradients directly
-        int vectorWidth = buffer->getVectorWidth();
         std::vector<size_t> gradientIndices = {
-            static_cast<size_t>(nominalNodeId) * vectorWidth,
-            static_cast<size_t>(fixedRateNodeId) * vectorWidth,
-            static_cast<size_t>(forwardRateNodeId) * vectorWidth,
-            static_cast<size_t>(aNodeId) * vectorWidth,
-            static_cast<size_t>(sigmaNodeId) * vectorWidth
+            buffer->getBufferIndex(nominalNodeId),
+            buffer->getBufferIndex(fixedRateNodeId),
+            buffer->getBufferIndex(forwardRateNodeId),
+            buffer->getBufferIndex(aNodeId),
+            buffer->getBufferIndex(sigmaNodeId)
         };
-        std::vector<double> gradients(5);
-        buffer->getGradientsDirect(gradientIndices, gradients.data());
+        std::vector<double> gradients(5 * vectorWidth);
+        buffer->getGradientLanes(gradientIndices, gradients.data());
 
-        derivatives.nominal = gradients[0];
-        derivatives.fixedRate = gradients[1];
-        derivatives.forwardRate = gradients[2];
-        derivatives.a = gradients[3];
-        derivatives.sigma = gradients[4];
+        derivatives.nominal = gradients[0 * vectorWidth];
+        derivatives.fixedRate = gradients[1 * vectorWidth];
+        derivatives.forwardRate = gradients[2 * vectorWidth];
+        derivatives.a = gradients[3 * vectorWidth];
+        derivatives.sigma = gradients[4 * vectorWidth];
 
         return Real(priceValue);
     }

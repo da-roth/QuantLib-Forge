@@ -687,7 +687,7 @@ namespace {
                 int vectorWidth = buffer->getVectorWidth();
                 std::vector<size_t> gradientIndices(config.numRiskFactors);
                 for (Size i = 0; i < config.numRiskFactors; ++i) {
-                    gradientIndices[i] = static_cast<size_t>(rateNodeIds[i]) * vectorWidth;
+                    gradientIndices[i] = buffer->getBufferIndex(rateNodeIds[i]);
                 }
 
                 auto kernelEndTime = std::chrono::high_resolution_clock::now();
@@ -697,16 +697,18 @@ namespace {
                 // --- EVALUATION (1 scenario per execution) ---
                 auto evalStartTime = std::chrono::high_resolution_clock::now();
 
-                std::vector<double> gradOutput(config.numRiskFactors);
+                // For scalar (vectorWidth=1), output size = numRiskFactors * 1
+                std::vector<double> gradOutput(config.numRiskFactors * vectorWidth);
 
                 for (Size p = 0; p < config.numPaths; ++p) {
                     const auto& scenario = scenarios[t][p];
                     std::vector<double> scenarioInputs = scenario.flatten();
 
-                    // Set inputs (scalar - one value per node)
+                    // Set inputs (vectorWidth values per node)
                     auto setInputsStart = std::chrono::high_resolution_clock::now();
                     for (Size i = 0; i < config.numRiskFactors; ++i) {
-                        buffer->setValue(rateNodeIds[i], scenarioInputs[i]);
+                        double inputVal[4] = {scenarioInputs[i], scenarioInputs[i], scenarioInputs[i], scenarioInputs[i]};
+                        buffer->setLanes(rateNodeIds[i], inputVal);
                     }
                     auto setInputsEnd = std::chrono::high_resolution_clock::now();
                     totalSetInputsUs += std::chrono::duration_cast<std::chrono::nanoseconds>(setInputsEnd - setInputsStart).count() / 1000.0;
@@ -720,7 +722,9 @@ namespace {
 
                     // Get outputs
                     auto getOutputsStart = std::chrono::high_resolution_clock::now();
-                    double npvValue = buffer->getValue(npvNodeId);
+                    double outputVal[4];
+                    buffer->getLanes(npvNodeId, outputVal);
+                    double npvValue = outputVal[0];
                     results.exposures[s][t][p] = std::max(0.0, npvValue);
                     totalExposure += results.exposures[s][t][p];
                     auto getOutputsEnd = std::chrono::high_resolution_clock::now();
@@ -728,8 +732,12 @@ namespace {
 
                     // Get gradients
                     auto getGradientsStart = std::chrono::high_resolution_clock::now();
-                    buffer->getGradientsDirect(gradientIndices, gradOutput.data());
-                    results.sensitivities[s][t][p] = gradOutput;
+                    buffer->getGradientLanes(gradientIndices, gradOutput.data());
+                    // For scalar mode, gradOutput is just the gradients directly
+                    results.sensitivities[s][t][p].resize(config.numRiskFactors);
+                    for (Size i = 0; i < config.numRiskFactors; ++i) {
+                        results.sensitivities[s][t][p][i] = gradOutput[i * vectorWidth];
+                    }
                     auto getGradientsEnd = std::chrono::high_resolution_clock::now();
                     totalGetGradientsUs += std::chrono::duration_cast<std::chrono::nanoseconds>(getGradientsEnd - getGradientsStart).count() / 1000.0;
 
@@ -929,14 +937,14 @@ namespace {
                             _mm256_store_pd(&valuesPtr[inputIndices[i]], vals);
                         }
                     } else {
-                        // Fallback: use setVectorValueDirect
+                        // Fallback: use setLanes (AVX2: 4 values)
                         double vectorInput[VECTOR_WIDTH];
                         for (Size i = 0; i < config.numRiskFactors; ++i) {
                             vectorInput[0] = transposedInputs[transposedBase + i * VECTOR_WIDTH + 0];
                             vectorInput[1] = transposedInputs[transposedBase + i * VECTOR_WIDTH + 1];
                             vectorInput[2] = transposedInputs[transposedBase + i * VECTOR_WIDTH + 2];
                             vectorInput[3] = transposedInputs[transposedBase + i * VECTOR_WIDTH + 3];
-                            buffer->setVectorValueDirect(rateNodeIds[i], vectorInput);
+                            buffer->setLanes(rateNodeIds[i], vectorInput);
                         }
                     }
                     auto setInputsEnd = std::chrono::high_resolution_clock::now();
@@ -957,30 +965,24 @@ namespace {
                         npvValues[2] = valuesPtr[outputIndex + 2];
                         npvValues[3] = valuesPtr[outputIndex + 3];
                     } else {
-                        buffer->getVectorValueDirect(npvNodeId, npvValues);
+                        buffer->getLanes(npvNodeId, npvValues);
                     }
                     auto getOutputsEnd = std::chrono::high_resolution_clock::now();
                     totalGetOutputsUs += std::chrono::duration_cast<std::chrono::nanoseconds>(getOutputsEnd - getOutputsStart).count() / 1000.0;
 
-                    // Get gradients for all 4 lanes
+                    // Get gradients for all 4 lanes (interleaved layout)
                     auto getGradientsStart = std::chrono::high_resolution_clock::now();
-                    double* gradOutputPtrs[4];
+                    // getGradientLanes returns interleaved: [node0_lane0..3, node1_lane0..3, ...]
+                    std::vector<double> gradOutputInterleaved(config.numRiskFactors * VECTOR_WIDTH);
+                    buffer->getGradientLanes(gradientIndices, gradOutputInterleaved.data());
+
+                    // Distribute to per-scenario results
                     for (Size b = 0; b < batchSize; ++b) {
                         Size p = batchStart + b;
-                        gradOutputPtrs[b] = results.sensitivities[s][t][p].data();
-                    }
-                    for (Size b = batchSize; b < VECTOR_WIDTH; ++b) {
-                        gradOutputPtrs[b] = gradOutputPtrs[batchSize - 1];
-                    }
-
-                    if (allIndicesValid) {
-                        buffer->getGradientsDirectAllLanes(gradientIndices, gradOutputPtrs);
-                    } else {
-                        for (Size b = 0; b < batchSize; ++b) {
-                            for (Size i = 0; i < config.numRiskFactors; ++i) {
-                                std::vector<double> gradVector = buffer->getVectorGradient(rateNodeIds[i]);
-                                gradOutputPtrs[b][i] = gradVector[b];
-                            }
+                        results.sensitivities[s][t][p].resize(config.numRiskFactors);
+                        for (Size i = 0; i < config.numRiskFactors; ++i) {
+                            // Interleaved layout: node i, lane b is at index i * VECTOR_WIDTH + b
+                            results.sensitivities[s][t][p][i] = gradOutputInterleaved[i * VECTOR_WIDTH + b];
                         }
                     }
                     auto getGradientsEnd = std::chrono::high_resolution_clock::now();

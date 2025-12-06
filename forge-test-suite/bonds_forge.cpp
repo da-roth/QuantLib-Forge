@@ -139,35 +139,36 @@ namespace {
         auto buffer = forge::NodeValueBufferFactory::create(graph, *kernel);
 
         // Set input values
-        buffer->setValue(spotRate1NodeId, value(values.spotRate1));
-        buffer->setValue(spotRate2NodeId, value(values.spotRate2));
-        buffer->setValue(spotRate3NodeId, value(values.spotRate3));
-        buffer->setValue(couponRateNodeId, value(values.couponRate));
-        buffer->setValue(faceValueNodeId, value(values.faceValue));
+        int vectorWidth = buffer->getVectorWidth();
+        double sr1Val[4] = {value(values.spotRate1), value(values.spotRate1), value(values.spotRate1), value(values.spotRate1)}; buffer->setLanes(spotRate1NodeId, sr1Val);
+        double sr2Val[4] = {value(values.spotRate2), value(values.spotRate2), value(values.spotRate2), value(values.spotRate2)}; buffer->setLanes(spotRate2NodeId, sr2Val);
+        double sr3Val[4] = {value(values.spotRate3), value(values.spotRate3), value(values.spotRate3), value(values.spotRate3)}; buffer->setLanes(spotRate3NodeId, sr3Val);
+        double crVal[4] = {value(values.couponRate), value(values.couponRate), value(values.couponRate), value(values.couponRate)}; buffer->setLanes(couponRateNodeId, crVal);
+        double fvVal[4] = {value(values.faceValue), value(values.faceValue), value(values.faceValue), value(values.faceValue)}; buffer->setLanes(faceValueNodeId, fvVal);
 
         // Execute (forward + backward in one call)
         kernel->execute(*buffer);
 
         // Get the price value
-        double priceValue = buffer->getValue(priceNodeId);
+        double priceOut[4]; buffer->getLanes(priceNodeId, priceOut);
+        double priceValue = priceOut[0];
 
         // Get gradients directly
-        int vectorWidth = buffer->getVectorWidth();
         std::vector<size_t> gradientIndices = {
-            static_cast<size_t>(spotRate1NodeId) * vectorWidth,
-            static_cast<size_t>(spotRate2NodeId) * vectorWidth,
-            static_cast<size_t>(spotRate3NodeId) * vectorWidth,
-            static_cast<size_t>(couponRateNodeId) * vectorWidth,
-            static_cast<size_t>(faceValueNodeId) * vectorWidth
+            buffer->getBufferIndex(spotRate1NodeId),
+            buffer->getBufferIndex(spotRate2NodeId),
+            buffer->getBufferIndex(spotRate3NodeId),
+            buffer->getBufferIndex(couponRateNodeId),
+            buffer->getBufferIndex(faceValueNodeId)
         };
-        std::vector<double> gradients(5);
-        buffer->getGradientsDirect(gradientIndices, gradients.data());
+        std::vector<double> gradients(5 * vectorWidth);
+        buffer->getGradientLanes(gradientIndices, gradients.data());
 
-        derivatives.spotRate1 = gradients[0];
-        derivatives.spotRate2 = gradients[1];
-        derivatives.spotRate3 = gradients[2];
-        derivatives.couponRate = gradients[3];
-        derivatives.faceValue = gradients[4];
+        derivatives.spotRate1 = gradients[0 * vectorWidth];
+        derivatives.spotRate2 = gradients[1 * vectorWidth];
+        derivatives.spotRate3 = gradients[2 * vectorWidth];
+        derivatives.couponRate = gradients[3 * vectorWidth];
+        derivatives.faceValue = gradients[4 * vectorWidth];
 
         return Real(priceValue);
     }

@@ -686,26 +686,33 @@ namespace {
                     std::vector<double> scenarioInputs = scenario.flatten();
 
                     for (Size i = 0; i < config.numRiskFactors; ++i) {
-                        buffer->setValue(rateNodeIds[i], scenarioInputs[i]);
+                        double inputVal[4] = {scenarioInputs[i], scenarioInputs[i], scenarioInputs[i], scenarioInputs[i]};
+                        buffer->setLanes(rateNodeIds[i], inputVal);
                     }
                     kernel->execute(*buffer);
                     numEvaluations++;
 
-                    double baseNpv = buffer->getValue(npvNodeId);
+                    double outputVal[4];
+                    buffer->getLanes(npvNodeId, outputVal);
+                    double baseNpv = outputVal[0];
                     results.exposures[s][t][p] = std::max(0.0, baseNpv);
                     totalExposure += results.exposures[s][t][p];
 
                     // Compute sensitivities via bump-reval (no AAD)
                     results.sensitivities[s][t][p].resize(config.numRiskFactors);
                     for (Size i = 0; i < config.numRiskFactors; ++i) {
-                        buffer->setValue(rateNodeIds[i], scenarioInputs[i] + config.bumpSize);
+                        double bumpedInputVal[4] = {scenarioInputs[i] + config.bumpSize, scenarioInputs[i] + config.bumpSize, scenarioInputs[i] + config.bumpSize, scenarioInputs[i] + config.bumpSize};
+                        buffer->setLanes(rateNodeIds[i], bumpedInputVal);
                         kernel->execute(*buffer);
                         numEvaluations++;
 
-                        double bumpedNpv = buffer->getValue(npvNodeId);
+                        double bumpedOutputVal[4];
+                        buffer->getLanes(npvNodeId, bumpedOutputVal);
+                        double bumpedNpv = bumpedOutputVal[0];
                         results.sensitivities[s][t][p][i] = (bumpedNpv - baseNpv) / config.bumpSize;
 
-                        buffer->setValue(rateNodeIds[i], scenarioInputs[i]);
+                        double restoreVal[4] = {scenarioInputs[i], scenarioInputs[i], scenarioInputs[i], scenarioInputs[i]};
+                        buffer->setLanes(rateNodeIds[i], restoreVal);
                     }
                     numScenarios++;
                 }

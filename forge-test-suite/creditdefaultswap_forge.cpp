@@ -141,35 +141,36 @@ namespace {
         auto buffer = forge::NodeValueBufferFactory::create(graph, *kernel);
 
         // Set input values
-        buffer->setValue(notionalNodeId, value(values.notional));
-        buffer->setValue(hazardRateNodeId, value(values.hazardRate));
-        buffer->setValue(recoveryRateNodeId, value(values.recoveryRate));
-        buffer->setValue(fixedRateNodeId, value(values.fixedRate));
-        buffer->setValue(riskFreeRateNodeId, value(values.riskFreeRate));
+        int vectorWidth = buffer->getVectorWidth();
+        double notionalVal[4] = {value(values.notional), value(values.notional), value(values.notional), value(values.notional)}; buffer->setLanes(notionalNodeId, notionalVal);
+        double hazardRateVal[4] = {value(values.hazardRate), value(values.hazardRate), value(values.hazardRate), value(values.hazardRate)}; buffer->setLanes(hazardRateNodeId, hazardRateVal);
+        double recoveryRateVal[4] = {value(values.recoveryRate), value(values.recoveryRate), value(values.recoveryRate), value(values.recoveryRate)}; buffer->setLanes(recoveryRateNodeId, recoveryRateVal);
+        double fixedRateVal[4] = {value(values.fixedRate), value(values.fixedRate), value(values.fixedRate), value(values.fixedRate)}; buffer->setLanes(fixedRateNodeId, fixedRateVal);
+        double riskFreeRateVal[4] = {value(values.riskFreeRate), value(values.riskFreeRate), value(values.riskFreeRate), value(values.riskFreeRate)}; buffer->setLanes(riskFreeRateNodeId, riskFreeRateVal);
 
         // Execute (forward + backward in one call)
         kernel->execute(*buffer);
 
         // Get the price value
-        double priceValue = buffer->getValue(priceNodeId);
+        double priceOut[4]; buffer->getLanes(priceNodeId, priceOut);
+        double priceValue = priceOut[0];
 
         // Get gradients directly
-        int vectorWidth = buffer->getVectorWidth();
         std::vector<size_t> gradientIndices = {
-            static_cast<size_t>(notionalNodeId) * vectorWidth,
-            static_cast<size_t>(hazardRateNodeId) * vectorWidth,
-            static_cast<size_t>(recoveryRateNodeId) * vectorWidth,
-            static_cast<size_t>(fixedRateNodeId) * vectorWidth,
-            static_cast<size_t>(riskFreeRateNodeId) * vectorWidth
+            buffer->getBufferIndex(notionalNodeId),
+            buffer->getBufferIndex(hazardRateNodeId),
+            buffer->getBufferIndex(recoveryRateNodeId),
+            buffer->getBufferIndex(fixedRateNodeId),
+            buffer->getBufferIndex(riskFreeRateNodeId)
         };
-        std::vector<double> gradients(5);
-        buffer->getGradientsDirect(gradientIndices, gradients.data());
+        std::vector<double> gradients(5 * vectorWidth);
+        buffer->getGradientLanes(gradientIndices, gradients.data());
 
-        derivatives.notional = gradients[0];
-        derivatives.hazardRate = gradients[1];
-        derivatives.recoveryRate = gradients[2];
-        derivatives.fixedRate = gradients[3];
-        derivatives.riskFreeRate = gradients[4];
+        derivatives.notional = gradients[0 * vectorWidth];
+        derivatives.hazardRate = gradients[1 * vectorWidth];
+        derivatives.recoveryRate = gradients[2 * vectorWidth];
+        derivatives.fixedRate = gradients[3 * vectorWidth];
+        derivatives.riskFreeRate = gradients[4 * vectorWidth];
 
         return Real(priceValue);
     }

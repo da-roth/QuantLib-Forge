@@ -616,30 +616,39 @@ namespace {
                 // --- EVALUATION ---
                 auto evalStartTime = std::chrono::high_resolution_clock::now();
 
+                int vectorWidth = buffer->getVectorWidth();
+
                 for (Size p = 0; p < config.numPaths; ++p) {
                     const auto& scenario = scenarios[t][p];
                     std::vector<double> scenarioInputs = scenario.flatten();
 
                     for (Size i = 0; i < config.numRiskFactors; ++i) {
-                        buffer->setValue(rateNodeIds[i], scenarioInputs[i]);
+                        double inputVal[4] = {scenarioInputs[i], scenarioInputs[i], scenarioInputs[i], scenarioInputs[i]};
+                        buffer->setLanes(rateNodeIds[i], inputVal);
                     }
                     kernel->execute(*buffer);
                     numEvaluations++;
 
-                    double baseNpv = buffer->getValue(npvNodeId);
+                    double outputVal[4];
+                    buffer->getLanes(npvNodeId, outputVal);
+                    double baseNpv = outputVal[0];
                     results.exposures[s][t][p] = std::max(0.0, baseNpv);
                     totalExposure += results.exposures[s][t][p];
 
                     results.sensitivities[s][t][p].resize(config.numRiskFactors);
                     for (Size i = 0; i < config.numRiskFactors; ++i) {
-                        buffer->setValue(rateNodeIds[i], scenarioInputs[i] + config.bumpSize);
+                        double bumpedInputVal[4] = {scenarioInputs[i] + config.bumpSize, scenarioInputs[i] + config.bumpSize, scenarioInputs[i] + config.bumpSize, scenarioInputs[i] + config.bumpSize};
+                        buffer->setLanes(rateNodeIds[i], bumpedInputVal);
                         kernel->execute(*buffer);
                         numEvaluations++;
 
-                        double bumpedNpv = buffer->getValue(npvNodeId);
+                        double bumpedOutputVal[4];
+                        buffer->getLanes(npvNodeId, bumpedOutputVal);
+                        double bumpedNpv = bumpedOutputVal[0];
                         results.sensitivities[s][t][p][i] = (bumpedNpv - baseNpv) / config.bumpSize;
 
-                        buffer->setValue(rateNodeIds[i], scenarioInputs[i]);
+                        double restoreVal[4] = {scenarioInputs[i], scenarioInputs[i], scenarioInputs[i], scenarioInputs[i]};
+                        buffer->setLanes(rateNodeIds[i], restoreVal);
                     }
                     numScenarios++;
                 }
@@ -725,7 +734,7 @@ namespace {
                 int vectorWidth = buffer->getVectorWidth();
                 std::vector<size_t> gradientIndices(config.numRiskFactors);
                 for (Size i = 0; i < config.numRiskFactors; ++i) {
-                    gradientIndices[i] = static_cast<size_t>(rateNodeIds[i]) * vectorWidth;
+                    gradientIndices[i] = buffer->getBufferIndex(rateNodeIds[i]);
                 }
 
                 auto kernelEndTime = std::chrono::high_resolution_clock::now();
@@ -735,26 +744,34 @@ namespace {
                 // --- EVALUATION ---
                 auto evalStartTime = std::chrono::high_resolution_clock::now();
 
-                std::vector<double> gradOutput(config.numRiskFactors);
+                // For scalar (vectorWidth=1), output size = numRiskFactors * 1
+                std::vector<double> gradOutput(config.numRiskFactors * vectorWidth);
 
                 for (Size p = 0; p < config.numPaths; ++p) {
                     const auto& scenario = scenarios[t][p];
                     std::vector<double> scenarioInputs = scenario.flatten();
 
                     for (Size i = 0; i < config.numRiskFactors; ++i) {
-                        buffer->setValue(rateNodeIds[i], scenarioInputs[i]);
+                        double inputVal[4] = {scenarioInputs[i], scenarioInputs[i], scenarioInputs[i], scenarioInputs[i]};
+                        buffer->setLanes(rateNodeIds[i], inputVal);
                     }
 
                     buffer->clearGradients();
                     kernel->execute(*buffer);
                     numEvaluations++;
 
-                    double npvValue = buffer->getValue(npvNodeId);
+                    double outputVal[4];
+                    buffer->getLanes(npvNodeId, outputVal);
+                    double npvValue = outputVal[0];
                     results.exposures[s][t][p] = std::max(0.0, npvValue);
                     totalExposure += results.exposures[s][t][p];
 
-                    buffer->getGradientsDirect(gradientIndices, gradOutput.data());
-                    results.sensitivities[s][t][p] = gradOutput;
+                    buffer->getGradientLanes(gradientIndices, gradOutput.data());
+                    // For scalar mode, gradOutput is just the gradients directly
+                    results.sensitivities[s][t][p].resize(config.numRiskFactors);
+                    for (Size i = 0; i < config.numRiskFactors; ++i) {
+                        results.sensitivities[s][t][p][i] = gradOutput[i * vectorWidth];
+                    }
                     numScenarios++;
                 }
 

@@ -113,35 +113,36 @@ namespace {
         auto buffer = forge::NodeValueBufferFactory::create(graph, *kernel);
 
         // Set input values
-        buffer->setValue(dNodeId, value(values.d));
-        buffer->setValue(rNodeId, value(values.r));
-        buffer->setValue(strikeNodeId, value(values.strike));
-        buffer->setValue(uNodeId, value(values.u));
-        buffer->setValue(vNodeId, value(values.v));
+        int vectorWidth = buffer->getVectorWidth();
+        double dVal[4] = {value(values.d), value(values.d), value(values.d), value(values.d)}; buffer->setLanes(dNodeId, dVal);
+        double rVal[4] = {value(values.r), value(values.r), value(values.r), value(values.r)}; buffer->setLanes(rNodeId, rVal);
+        double strikeVal[4] = {value(values.strike), value(values.strike), value(values.strike), value(values.strike)}; buffer->setLanes(strikeNodeId, strikeVal);
+        double uVal[4] = {value(values.u), value(values.u), value(values.u), value(values.u)}; buffer->setLanes(uNodeId, uVal);
+        double vVal[4] = {value(values.v), value(values.v), value(values.v), value(values.v)}; buffer->setLanes(vNodeId, vVal);
 
         // Execute (forward + backward in one call)
         kernel->execute(*buffer);
 
         // Get the price value
-        double priceValue = buffer->getValue(priceNodeId);
+        double priceOut[4]; buffer->getLanes(priceNodeId, priceOut);
+        double priceValue = priceOut[0];
 
         // Get gradients directly
-        int vectorWidth = buffer->getVectorWidth();
         std::vector<size_t> gradientIndices = {
-            static_cast<size_t>(dNodeId) * vectorWidth,
-            static_cast<size_t>(rNodeId) * vectorWidth,
-            static_cast<size_t>(strikeNodeId) * vectorWidth,
-            static_cast<size_t>(uNodeId) * vectorWidth,
-            static_cast<size_t>(vNodeId) * vectorWidth
+            buffer->getBufferIndex(dNodeId),
+            buffer->getBufferIndex(rNodeId),
+            buffer->getBufferIndex(strikeNodeId),
+            buffer->getBufferIndex(uNodeId),
+            buffer->getBufferIndex(vNodeId)
         };
-        std::vector<double> gradients(5);
-        buffer->getGradientsDirect(gradientIndices, gradients.data());
+        std::vector<double> gradients(5 * vectorWidth);
+        buffer->getGradientLanes(gradientIndices, gradients.data());
 
-        derivatives.d = gradients[0];
-        derivatives.r = gradients[1];
-        derivatives.strike = gradients[2];
-        derivatives.u = gradients[3];
-        derivatives.v = gradients[4];
+        derivatives.d = gradients[0 * vectorWidth];
+        derivatives.r = gradients[1 * vectorWidth];
+        derivatives.strike = gradients[2 * vectorWidth];
+        derivatives.u = gradients[3 * vectorWidth];
+        derivatives.v = gradients[4 * vectorWidth];
 
         return Real(priceValue);
     }

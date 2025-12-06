@@ -128,33 +128,34 @@ namespace {
         auto buffer = forge::NodeValueBufferFactory::create(graph, *kernel);
 
         // Set input values
-        buffer->setValue(nNodeId, value(values.n));
-        buffer->setValue(sNodeId, value(values.s));
-        buffer->setValue(gNodeId, value(values.g));
-        buffer->setValue(vNodeId, value(values.v));
+        int vectorWidth = buffer->getVectorWidth();
+        double nVal[4] = {value(values.n), value(values.n), value(values.n), value(values.n)}; buffer->setLanes(nNodeId, nVal);
+        double sVal[4] = {value(values.s), value(values.s), value(values.s), value(values.s)}; buffer->setLanes(sNodeId, sVal);
+        double gVal[4] = {value(values.g), value(values.g), value(values.g), value(values.g)}; buffer->setLanes(gNodeId, gVal);
+        double vVal[4] = {value(values.v), value(values.v), value(values.v), value(values.v)}; buffer->setLanes(vNodeId, vVal);
 
         // Execute (forward + backward in one call)
         buffer->clearGradients();
         kernel->execute(*buffer);
 
         // Get the price value
-        double priceValue = buffer->getValue(priceNodeId);
+        double priceOut[4]; buffer->getLanes(priceNodeId, priceOut);
+        double priceValue = priceOut[0];
 
         // Get gradients directly
-        int vectorWidth = buffer->getVectorWidth();
         std::vector<size_t> gradientIndices = {
-            static_cast<size_t>(nNodeId) * vectorWidth,
-            static_cast<size_t>(sNodeId) * vectorWidth,
-            static_cast<size_t>(gNodeId) * vectorWidth,
-            static_cast<size_t>(vNodeId) * vectorWidth
+            buffer->getBufferIndex(nNodeId),
+            buffer->getBufferIndex(sNodeId),
+            buffer->getBufferIndex(gNodeId),
+            buffer->getBufferIndex(vNodeId)
         };
-        std::vector<double> gradients(4);
-        buffer->getGradientsDirect(gradientIndices, gradients.data());
+        std::vector<double> gradients(4 * vectorWidth);
+        buffer->getGradientLanes(gradientIndices, gradients.data());
 
-        derivatives.n = gradients[0];
-        derivatives.s = gradients[1];
-        derivatives.g = gradients[2];
-        derivatives.v = gradients[3];
+        derivatives.n = gradients[0 * vectorWidth];
+        derivatives.s = gradients[1 * vectorWidth];
+        derivatives.g = gradients[2 * vectorWidth];
+        derivatives.v = gradients[3 * vectorWidth];
 
         return Real(priceValue);
     }

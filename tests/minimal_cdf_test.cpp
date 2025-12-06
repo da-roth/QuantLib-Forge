@@ -111,10 +111,13 @@ TestResult testForgeCDFKernelReuse() {
         double expected = originalCDF(input);
 
         // Re-evaluate Forge kernel with new input
-        buffer->setValue(xId, input);
+        double inputVal[4] = {input, input, input, input};
+        buffer->setLanes(xId, inputVal);
         buffer->clearGradients();
         kernel->execute(*buffer);
-        double forgeResult = buffer->getValue(yId);
+        double outputVal[4];
+        buffer->getLanes(yId, outputVal);
+        double forgeResult = outputVal[0];
 
         double relError = std::abs(expected) > 1e-10
             ? std::abs(forgeResult - expected) / std::abs(expected)
@@ -188,10 +191,13 @@ TestResult testB4Scenario() {
         // Expected from original CDF
         double expected = originalCDF(input);
 
-        buffer->setValue(xId, input);
+        double inputVal[4] = {input, input, input, input};
+        buffer->setLanes(xId, inputVal);
         buffer->clearGradients();
         kernel->execute(*buffer);
-        double forgeResult = buffer->getValue(yId);
+        double outputVal[4];
+        buffer->getLanes(yId, outputVal);
+        double forgeResult = outputVal[0];
 
         double relError = std::abs(expected) > 1e-10
             ? std::abs(forgeResult - expected) / std::abs(expected)
@@ -257,10 +263,13 @@ TestResult testReverseScenario() {
         double input = testInputs[i];
         double expected = originalCDF(input);
 
-        buffer->setValue(xId, input);
+        double inputVal[4] = {input, input, input, input};
+        buffer->setLanes(xId, inputVal);
         buffer->clearGradients();
         kernel->execute(*buffer);
-        double forgeResult = buffer->getValue(yId);
+        double outputVal[4];
+        buffer->getLanes(yId, outputVal);
+        double forgeResult = outputVal[0];
 
         double relError = std::abs(expected) > 1e-10
             ? std::abs(forgeResult - expected) / std::abs(expected)
@@ -337,10 +346,13 @@ TestResult testCFormulaScenario() {
         double input = testInputs[i];
         double expected = originalCDF(input);
 
-        buffer->setValue(xId, input);
+        double inputVal[4] = {input, input, input, input};
+        buffer->setLanes(xId, inputVal);
         buffer->clearGradients();
         kernel->execute(*buffer);
-        double forgeResult = buffer->getValue(yId);
+        double outputVal[4];
+        buffer->getLanes(yId, outputVal);
+        double forgeResult = outputVal[0];
 
         double relError = std::abs(expected) > 1e-10
             ? std::abs(forgeResult - expected) / std::abs(expected)
@@ -408,10 +420,13 @@ TestResult testExtremeNegativeScenario() {
         double input = testInputs[i];
         double expected = originalCDF(input);
 
-        buffer->setValue(xId, input);
+        double inputVal[4] = {input, input, input, input};
+        buffer->setLanes(xId, inputVal);
         buffer->clearGradients();
         kernel->execute(*buffer);
-        double forgeResult = buffer->getValue(yId);
+        double outputVal[4];
+        buffer->getLanes(yId, outputVal);
+        double forgeResult = outputVal[0];
 
         double relError = std::abs(expected) > 1e-10
             ? std::abs(forgeResult - expected) / std::abs(expected)

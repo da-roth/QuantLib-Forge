@@ -144,38 +144,40 @@ namespace {
         auto buffer = forge::NodeValueBufferFactory::create(graph, *kernel);
 
         // Set input values
-        buffer->setValue(qNodeId, value(values.q));
-        buffer->setValue(rNodeId, value(values.r));
-        buffer->setValue(sNodeId, value(values.s));
-        buffer->setValue(strikeNodeId, value(values.strike));
-        buffer->setValue(tNodeId, value(values.t));
-        buffer->setValue(vNodeId, value(values.v));
+        int vectorWidth = buffer->getVectorWidth();
+        double qVal[4] = {value(values.q), value(values.q), value(values.q), value(values.q)}; buffer->setLanes(qNodeId, qVal);
+        double rVal[4] = {value(values.r), value(values.r), value(values.r), value(values.r)}; buffer->setLanes(rNodeId, rVal);
+        double sVal[4] = {value(values.s), value(values.s), value(values.s), value(values.s)}; buffer->setLanes(sNodeId, sVal);
+        double strikeVal[4] = {value(values.strike), value(values.strike), value(values.strike), value(values.strike)}; buffer->setLanes(strikeNodeId, strikeVal);
+        double tVal[4] = {value(values.t), value(values.t), value(values.t), value(values.t)}; buffer->setLanes(tNodeId, tVal);
+        double vVal[4] = {value(values.v), value(values.v), value(values.v), value(values.v)}; buffer->setLanes(vNodeId, vVal);
 
         // Execute (forward + backward in one call)
         kernel->execute(*buffer);
 
         // Get the price value
-        double priceValue = buffer->getValue(priceNodeId);
+        double priceOut[4]; buffer->getLanes(priceNodeId, priceOut);
+        double priceValue = priceOut[0];
 
         // Get gradients directly
-        int vectorWidth = buffer->getVectorWidth();
         std::vector<size_t> gradientIndices = {
-            static_cast<size_t>(qNodeId) * vectorWidth,
-            static_cast<size_t>(rNodeId) * vectorWidth,
-            static_cast<size_t>(sNodeId) * vectorWidth,
-            static_cast<size_t>(strikeNodeId) * vectorWidth,
-            static_cast<size_t>(tNodeId) * vectorWidth,
-            static_cast<size_t>(vNodeId) * vectorWidth
+            buffer->getBufferIndex(qNodeId),
+            buffer->getBufferIndex(rNodeId),
+            buffer->getBufferIndex(sNodeId),
+            buffer->getBufferIndex(strikeNodeId),
+            buffer->getBufferIndex(tNodeId),
+            buffer->getBufferIndex(vNodeId)
         };
-        std::vector<double> gradients(6);
-        buffer->getGradientsDirect(gradientIndices, gradients.data());
+        std::vector<double> gradients(6 * vectorWidth);
+        buffer->getGradientLanes(gradientIndices, gradients.data());
 
-        derivatives.q = gradients[0];
-        derivatives.r = gradients[1];
-        derivatives.s = gradients[2];
-        derivatives.strike = gradients[3];
-        derivatives.t = gradients[4];
-        derivatives.v = gradients[5];
+        // For scalar mode (vectorWidth=1), gradients are interleaved at vectorWidth strides
+        derivatives.q = gradients[0 * vectorWidth];
+        derivatives.r = gradients[1 * vectorWidth];
+        derivatives.s = gradients[2 * vectorWidth];
+        derivatives.strike = gradients[3 * vectorWidth];
+        derivatives.t = gradients[4 * vectorWidth];
+        derivatives.v = gradients[5 * vectorWidth];
 
         return Real(priceValue);
     }
