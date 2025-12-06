@@ -701,13 +701,14 @@ namespace {
                     std::vector<double> scenarioInputs = scenario.flatten();
 
                     for (Size i = 0; i < config.numRiskFactors; ++i) {
-                        double inputVal[1] = {scenarioInputs[i]};
+                        // Use array of 4 to support both SSE2 (width=1) and AVX2 (width=4)
+                        double inputVal[4] = {scenarioInputs[i], scenarioInputs[i], scenarioInputs[i], scenarioInputs[i]};
                         buffer->setLanes(rateNodeIds[i], inputVal);
                     }
                     kernel->execute(*buffer);
                     numEvaluations++;
 
-                    double npvOutput[1];
+                    double npvOutput[4];  // Must be 4 for AVX2 compatibility
                     buffer->getLanes(npvNodeId, npvOutput);
                     double baseNpv = npvOutput[0];
                     results.exposures[s][t][p] = std::max(0.0, baseNpv);
@@ -715,7 +716,8 @@ namespace {
 
                     results.sensitivities[s][t][p].resize(config.numRiskFactors);
                     for (Size i = 0; i < config.numRiskFactors; ++i) {
-                        double bumpedVal[1] = {scenarioInputs[i] + config.bumpSize};
+                        double bumpedVal[4] = {scenarioInputs[i] + config.bumpSize, scenarioInputs[i] + config.bumpSize,
+                                               scenarioInputs[i] + config.bumpSize, scenarioInputs[i] + config.bumpSize};
                         buffer->setLanes(rateNodeIds[i], bumpedVal);
                         kernel->execute(*buffer);
                         numEvaluations++;
@@ -724,7 +726,7 @@ namespace {
                         double bumpedNpv = npvOutput[0];
                         results.sensitivities[s][t][p][i] = (bumpedNpv - baseNpv) / config.bumpSize;
 
-                        double originalVal[1] = {scenarioInputs[i]};
+                        double originalVal[4] = {scenarioInputs[i], scenarioInputs[i], scenarioInputs[i], scenarioInputs[i]};
                         buffer->setLanes(rateNodeIds[i], originalVal);
                     }
                     numScenarios++;
@@ -824,13 +826,14 @@ namespace {
                     std::vector<double> scenarioInputs = scenario.flatten();
 
                     for (Size i = 0; i < config.numRiskFactors; ++i) {
-                        double inputVal[1] = {scenarioInputs[i]};
+                        // Use array of 4 to support both SSE2 (width=1) and AVX2 (width=4)
+                        double inputVal[4] = {scenarioInputs[i], scenarioInputs[i], scenarioInputs[i], scenarioInputs[i]};
                         buffer->setLanes(rateNodeIds[i], inputVal);
                     }
                     kernel->execute(*buffer);
                     numEvaluations++;
 
-                    double npvOutput[1];
+                    double npvOutput[4];  // Must be 4 for AVX2 compatibility
                     buffer->getLanes(npvNodeId, npvOutput);
                     double baseNpv = npvOutput[0];
                     results.exposures[s][t][p] = std::max(0.0, baseNpv);
@@ -839,7 +842,8 @@ namespace {
                     // Compute sensitivities via bump-reval (no AAD)
                     results.sensitivities[s][t][p].resize(config.numRiskFactors);
                     for (Size i = 0; i < config.numRiskFactors; ++i) {
-                        double bumpedVal[1] = {scenarioInputs[i] + config.bumpSize};
+                        double bumpedVal[4] = {scenarioInputs[i] + config.bumpSize, scenarioInputs[i] + config.bumpSize,
+                                               scenarioInputs[i] + config.bumpSize, scenarioInputs[i] + config.bumpSize};
                         buffer->setLanes(rateNodeIds[i], bumpedVal);
                         kernel->execute(*buffer);
                         numEvaluations++;
@@ -848,7 +852,7 @@ namespace {
                         double bumpedNpv = npvOutput[0];
                         results.sensitivities[s][t][p][i] = (bumpedNpv - baseNpv) / config.bumpSize;
 
-                        double originalVal[1] = {scenarioInputs[i]};
+                        double originalVal[4] = {scenarioInputs[i], scenarioInputs[i], scenarioInputs[i], scenarioInputs[i]};
                         buffer->setLanes(rateNodeIds[i], originalVal);
                     }
                     numScenarios++;
@@ -960,10 +964,10 @@ namespace {
                     const auto& scenario = scenarios[t][p];
                     std::vector<double> scenarioInputs = scenario.flatten();
 
-                    // Set inputs (scalar - one value per node)
+                    // Set inputs (use array of 4 for AVX2 compatibility)
                     auto setInputsStart = std::chrono::high_resolution_clock::now();
                     for (Size i = 0; i < config.numRiskFactors; ++i) {
-                        double inputVal[1] = {scenarioInputs[i]};
+                        double inputVal[4] = {scenarioInputs[i], scenarioInputs[i], scenarioInputs[i], scenarioInputs[i]};
                         buffer->setLanes(rateNodeIds[i], inputVal);
                     }
                     auto setInputsEnd = std::chrono::high_resolution_clock::now();
@@ -978,7 +982,7 @@ namespace {
 
                     // Get outputs
                     auto getOutputsStart = std::chrono::high_resolution_clock::now();
-                    double npvOutput[1];
+                    double npvOutput[4];  // Must be 4 for AVX2 compatibility
                     buffer->getLanes(npvNodeId, npvOutput);
                     double npvValue = npvOutput[0];
                     results.exposures[s][t][p] = std::max(0.0, npvValue);
