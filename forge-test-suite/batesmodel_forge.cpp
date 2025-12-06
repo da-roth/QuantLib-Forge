@@ -158,7 +158,9 @@ BOOST_AUTO_TEST_CASE(testBatesModelDerivatives, *boost::unit_test::disabled()) {
 
     kernel->execute(*buffer);
 
-    double priceValue = buffer->getValue(priceNodeId);
+    double priceOutput[1];
+    buffer->getLanes(priceNodeId, priceOutput);
+    double priceValue = priceOutput[0];
 
     int vectorWidth = buffer->getVectorWidth();
     std::vector<size_t> gradientIndices = {
@@ -167,7 +169,8 @@ BOOST_AUTO_TEST_CASE(testBatesModelDerivatives, *boost::unit_test::disabled()) {
         static_cast<size_t>(strikeNodeId) * vectorWidth
     };
     std::vector<double> gradients(3);
-    buffer->getGradientsDirect(gradientIndices, gradients.data());
+    double* gradOutputs[4] = {gradients.data(), nullptr, nullptr, nullptr};
+    buffer->getGradientLanes(gradientIndices, gradOutputs);
 
     // compare
     QL_CHECK_CLOSE(expected, Real(priceValue), 1e-9);

@@ -145,7 +145,9 @@ namespace {
         kernel->execute(*buffer);
 
         // Get the price value
-        double priceValue = buffer->getValue(priceNodeId);
+        double priceOutput[1];
+        buffer->getLanes(priceNodeId, priceOutput);
+        double priceValue = priceOutput[0];
 
         // Get gradients directly
         int vectorWidth = buffer->getVectorWidth();
@@ -157,7 +159,8 @@ namespace {
             static_cast<size_t>(rateNodeId) * vectorWidth
         };
         std::vector<double> gradients(5);
-        buffer->getGradientsDirect(gradientIndices, gradients.data());
+        double* gradOutputs[4] = {gradients.data(), nullptr, nullptr, nullptr};
+        buffer->getGradientLanes(gradientIndices, gradOutputs);
 
         derivatives.nominal = gradients[0];
         derivatives.spotRate1 = gradients[1];
